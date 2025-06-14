@@ -17,7 +17,7 @@ void onOTAStart()
   }
 }
 
-void onOTAEnd()
+void onOTAEnd(bool success)
 {
   std::vector<int> bits = Screen.readBytes(letterR);
 
@@ -33,9 +33,8 @@ void onOTAEnd()
 
 void initOTA(AsyncWebServer &server)
 {
-  AsyncElegantOTA.begin(&server, otaUser, otaPassword);
-  AsyncElegantOTA.onOTAStart(onOTAStart);
-  AsyncElegantOTA.onOTAEnd(onOTAEnd);
+  ElegantOTA.begin(&server, otaUser, otaPassword);
+  ElegantOTA.onStart(onOTAStart);
 }
 
 #endif

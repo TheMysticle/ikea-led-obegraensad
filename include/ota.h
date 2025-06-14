@@ -5,7 +5,7 @@
 #ifdef ENABLE_SERVER
 
 #include <ESPAsyncWebServer.h>
-#include <AsyncElegantOTA.h>
+#include <ElegantOTA.h>
 
 #include "screen.h"
 #include "PluginManager.h"
@@ -13,7 +13,7 @@
 #include "signs.h"
 
 void onOTAStart();
-void onOTAEnd();
+void onOTAEnd(bool success);
 void initOTA(AsyncWebServer &server);
 
 #endif
