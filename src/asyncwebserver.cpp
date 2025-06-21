@@ -13,8 +13,8 @@ void initWebServer()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
   server.on("/", HTTP_GET, startGui);
-  server.onNotFound([](AsyncWebServerRequest *request)
-                    { request->send(404, "text/plain", "Page not found!"); });
+  // server.onNotFound([](AsyncWebServerRequest *request)
+  //                   { request->send(404, "text/plain", "Page not found!"); });
 
   // Route to handle  http://your-server/message?text=Hello&repeat=3&id=42&delay=30&graph=1,2,3,4&miny=0&maxy=15
   server.on("/api/message", HTTP_GET, handleMessage);
@@ -37,7 +37,7 @@ void initWebServer()
 
   server.on("/api/storage/clear", HTTP_GET, handleClearStorage);
 
-  server.begin();
+  // REMOVE THIS LINE: server.begin(); // This will be handled by Espalexa.begin(&server) in main.cpp
 }
 
 #endif

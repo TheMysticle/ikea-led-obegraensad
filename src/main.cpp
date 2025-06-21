@@ -46,6 +46,13 @@
 #include "websocket.h"
 #include "messages.h"
 
+// --- ADDITIONS FOR ESPALEXA ---
+#define ESPALEXA_ASYNC // Important: Define this before including Espalexa.h!
+#include <Espalexa.h>
+
+Espalexa espalexa; // Create Espalexa instance
+// --- END ADDITIONS FOR ESPALEXA ---
+
 BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
 
 unsigned long previousMillis = 0;
@@ -133,6 +140,33 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
   }
 }
 
+// --- ADDITION FOR ESPALEXA ---
+// Callback function for Alexa control
+void setLedWallPower(uint8_t brightness)
+{
+  Serial.print("LED Wall brightness changed to: ");
+  Serial.println(brightness);
+
+  if (brightness == 0)
+  {
+    Screen.clear(); // Clear the screen when off
+    Screen.setBrightness(0, true); // Set brightness to 0 and persist
+  }
+  else
+  {
+    // If turning on or dimming, set brightness and ensure a plugin is running
+    Screen.setBrightness(brightness, true); // Set new brightness and persist
+    // You might want to reactivate the last active plugin or a default one
+    // if the screen was completely off.
+    // For simplicity, we'll just ensure brightness is set.
+    // If pluginManager.runActivePlugin() is called in loop(), it will display.
+    // If not, you might need to call pluginManager.activatePersistedPlugin();
+    // or pluginManager.activateNextPlugin(); here or start a default plugin.
+  }
+}
+// --- END ADDITION FOR ESPALEXA ---
+
+
 void baseSetup()
 {
   Serial.begin(115200);
@@ -156,6 +190,13 @@ void baseSetup()
   initOTA(server);
   initWebsocketServer(server);
   initWebServer();
+
+  // --- ADDITIONS FOR ESPALEXA ---
+  // Define your Alexa device
+  espalexa.addDevice("LED Wall", setLedWallPower); // "LED Wall" is the name Alexa will recognize
+  espalexa.begin(&server); // Pass your existing AsyncWebServer instance to Espalexa
+  // --- END ADDITIONS FOR ESPALEXA ---
+
 #endif
   pluginManager.addPlugin(new DrawPlugin());
   pluginManager.addPlugin(new BreakoutPlugin());
@@ -263,6 +304,7 @@ void loop()
 
 #ifdef ENABLE_SERVER
   cleanUpClients();
+  espalexa.loop(); // --- ADDITION FOR ESPALEXA --- Run Espalexa's loop function ---
 #endif
   delay(1);
 }
