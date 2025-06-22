@@ -24,6 +24,7 @@
 #include "plugins/FireworkPlugin.h"
 #include "plugins/GameOfLifePlugin.h"
 #include "plugins/LinesPlugin.h"
+#include "plugins/OffPlugin.h"
 #include "plugins/RainPlugin.h"
 #include "plugins/SnakePlugin.h"
 #include "plugins/StarsPlugin.h"
@@ -207,6 +208,7 @@ void baseSetup()
   pluginManager.addPlugin(new CirclePlugin());
   pluginManager.addPlugin(new RainPlugin());
   pluginManager.addPlugin(new FireworkPlugin());
+  pluginManager.addPlugin(new OffPlugin());
 
 #ifdef ENABLE_SERVER
   pluginManager.addPlugin(new BigClockPlugin());
@@ -305,6 +307,7 @@ void loop()
 #ifdef ENABLE_SERVER
   cleanUpClients();
   espalexa.loop(); // --- ADDITION FOR ESPALEXA --- Run Espalexa's loop function ---
+  ElegantOTA.loop();
 #endif
   delay(1);
 }
