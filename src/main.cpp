@@ -288,7 +288,6 @@ void loop()
 
     if ((taskCounter % 4) == 0)
     {
-      Messages.scrollMessageEveryMinute();
     }
   }
 
