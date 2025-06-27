@@ -32,6 +32,7 @@
 #include "plugins/TickingClockPlugin.h"
 #include "plugins/DDPPlugin.h"
 #include "plugins/TixyPlugin.h"
+#include "plugins/TessiePlugin.h"
 
 #ifdef ENABLE_SERVER
 #include "plugins/AnimationPlugin.h"
@@ -244,6 +245,7 @@ void baseSetup()
   pluginManager.addPlugin(new WeatherPlugin());
   pluginManager.addPlugin(new AnimationPlugin());
   pluginManager.addPlugin(new DDPPlugin());
+  pluginManager.addPlugin(new TessiePlugin());
 #endif
 
   pluginManager.init();
