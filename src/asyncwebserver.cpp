@@ -31,8 +31,29 @@ void initWebServer()
   server.on("/api/brightness", HTTP_PATCH, handleSetBrightness);
   server.on("/api/data", HTTP_GET, handleGetData);
 
-  // Scheduler
-  server.on("/api/schedule", HTTP_POST, handleSetSchedule);
+  // --- START OF THE CRITICAL FIX for Scheduler ---
+  // This route now uses a body handler to accept JSON data.
+  server.on(
+      "/api/schedule", HTTP_POST,
+      [](AsyncWebServerRequest *request) {}, // We don't need the simple request handler
+      NULL,                                 // No file upload
+      [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        // This lambda is called with the request body
+        if (index == 0)
+        {
+          // Create a String from the received data
+          String body;
+          body.reserve(len);
+          for (size_t i = 0; i < len; i++)
+          {
+            body += (char)data[i];
+          }
+          // Call our updated handler function
+          handleSetSchedule(request, body);
+        }
+      });
+  // --- END OF THE CRITICAL FIX for Scheduler ---
+
   server.on("/api/schedule/clear", HTTP_GET, handleClearSchedule);
   server.on("/api/schedule/stop", HTTP_GET, handleStopSchedule);
   server.on("/api/schedule/start", HTTP_GET, handleStartSchedule);
@@ -40,7 +61,6 @@ void initWebServer()
   server.on("/api/storage/clear", HTTP_GET, handleClearStorage);
 
 
-  // --- START OF THE CRITICAL FIX ---
   // Add a "Not Found" handler that first tries to process the request with Espalexa
   server.onNotFound([](AsyncWebServerRequest *request) {
     // First, check if Espalexa can handle the request
@@ -52,10 +72,6 @@ void initWebServer()
     // If Espalexa did not handle it, then it's a true 404
     request->send(404, "text/plain", "Page not found!");
   });
-  // --- END OF THE CRITICAL FIX ---
-
-
-  // REMOVED: server.begin(); // This will be handled by Espalexa.begin(&server) in main.cpp
 }
 
 #endif

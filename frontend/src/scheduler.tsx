@@ -1,4 +1,4 @@
-import { Component, createSignal, For, Index, Show } from 'solid-js';
+import { Component, For, Index, Show } from 'solid-js';
 import Button from './components/button';
 import { Layout } from './components/layout/layout';
 import { Tooltip } from './components/tooltip';
@@ -43,25 +43,25 @@ export const ToggleScheduleButton = () => {
           if (store.isActiveScheduler) {
             try {
               const response = await fetch(`${API_URL}api/schedule/stop`);
-
-              if (response.ok) {
-                toast('Stopped schedule successfully', 2000);
-              }
+              if (response.ok) toast('Stopped schedule successfully', 2000);
             } catch {
               toast('Failed to stop schedule', 2000);
             }
           } else {
             try {
+              // Ensure the request is sent as JSON
               const response = await fetch(`${API_URL}api/schedule`, {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'Content-Type': 'application/json',
                 },
-                body: `schedule=${JSON.stringify(store.schedule)}`,
+                body: JSON.stringify(store.schedule),
               });
 
               if (response.ok) {
                 toast('Schedule started successfully', 2000);
+              } else {
+                toast('Failed to start schedule', 2000);
               }
             } catch (error) {
               console.error('Failed to start schedule:', error);
@@ -84,7 +84,12 @@ const Scheduler: Component = () => {
   const handleAddItem = () => {
     actions.setSchedule([
       ...store.schedule,
-      { pluginId: store.plugins[0].id || 1, duration: 1 },
+      {
+        pluginId: store.plugins[0].id || 1,
+        startTime: '08:00',
+        endTime: '17:00',
+        brightness: 128,
+      },
     ]);
   };
 
@@ -92,18 +97,10 @@ const Scheduler: Component = () => {
     actions.setSchedule(store.schedule.filter((_, i) => i !== index));
   };
 
-  const handlePluginChange = (index: number, pluginId: number) => {
+  const handleItemChange = (index: number, field: string, value: any) => {
     actions.setSchedule(
       store.schedule.map((item, i) =>
-        i === index ? { ...item, pluginId } : item,
-      ),
-    );
-  };
-
-  const handleDurationChange = (index: number, duration: number) => {
-    actions.setSchedule(
-      store.schedule.map((item, i) =>
-        i === index ? { ...item, duration } : item,
+        i === index ? { ...item, [field]: value } : item,
       ),
     );
   };
@@ -112,7 +109,7 @@ const Scheduler: Component = () => {
     <Layout
       content={
         <div class="space-y-3 p-5">
-          <h3 class="text-4xl text-white  tracking-wide">Scheduler</h3>
+          <h3 class="text-4xl text-white tracking-wide">Scheduler</h3>
 
           <div class="bg-white p-6 rounded-md">
             <div class="space-y-2">
@@ -127,8 +124,8 @@ const Scheduler: Component = () => {
                 <Index each={store.schedule}>
                   {(item, index) => (
                     <div
-                      class={`flex items-center gap-4 p-4 rounded-lg shadow-sm border hover:border-gray-200 transition-all duration-200 ${
-                        store.plugin === item().pluginId
+                      class={`flex flex-col md:flex-row items-center gap-4 p-4 rounded-lg shadow-sm border hover:border-gray-200 transition-all duration-200 ${
+                        store.activeScheduleIndex === index
                           ? 'bg-green-300 border-green-500'
                           : 'bg-white border-gray-100'
                       }`}
@@ -136,70 +133,87 @@ const Scheduler: Component = () => {
                       <Show
                         when={store.isActiveScheduler}
                         fallback={
-                          <>
-                            <div class="flex-1">
-                              <select
-                                value={item().pluginId}
-                                onChange={(e) =>
-                                  handlePluginChange(
-                                    index,
-                                    parseInt(e.currentTarget.value),
-                                  )
-                                }
-                                class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:border-0"
-                              >
-                                <For each={store.plugins}>
-                                  {(plugin) => (
-                                    <option value={plugin.id}>
-                                      {plugin.name}
-                                    </option>
-                                  )}
-                                </For>
-                              </select>
-                            </div>
-                            <div class="flex items-center gap-3">
-                              <div class="relative">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item().duration}
-                                  onInput={(e) =>
-                                    handleDurationChange(
-                                      index,
-                                      parseInt(e.currentTarget.value),
-                                    )
-                                  }
-                                  class="pr-16 pl-3 py-2 w-32 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:border-0"
-                                />
-                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                                  {item().duration > 1 ? 'seconds' : 'second'}
-                                </span>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => handleRemoveItem(index)}
-                              class="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-                              aria-label="Remove item"
-                            >
-                              <i class="fas fa-trash-alt text-lg" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleRemoveItem(index)}
+                            class="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            aria-label="Remove item"
+                          >
+                            <i class="fas fa-trash-alt text-lg" />
+                          </button>
                         }
                       >
-                        <div class="w-full">
-                          {store.plugins?.find((p) => p.id === item().pluginId)
-                            ?.name ?? 'Unknown Plugin'}
-                        </div>
-                        <div class="flex items-center gap-3">
-                          <div class="relative">
-                            {item().duration}
-                            <span class="ml-2 text-sm text-gray-500">
-                              {item().duration > 1 ? 'seconds' : 'second'}
-                            </span>
-                          </div>
-                        </div>
+                        <div
+                          class="w-4 h-4 rounded-full"
+                          classList={{
+                            'bg-green-500 animate-pulse': store.activeScheduleIndex === index,
+                          }}
+                        ></div>
                       </Show>
+
+                      <div class="flex-1 w-full">
+                        <select
+                          value={item().pluginId}
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              'pluginId',
+                              parseInt(e.currentTarget.value),
+                            )
+                          }
+                          class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                          disabled={store.isActiveScheduler}
+                        >
+                          <For each={store.plugins}>
+                            {(plugin) => (
+                              <option value={plugin.id}>{plugin.name}</option>
+                            )}
+                          </For>
+                        </select>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={item().startTime}
+                          onInput={(e) =>
+                            handleItemChange(index, 'startTime', e.currentTarget.value)
+                          }
+                          class="p-2 border rounded-lg bg-gray-50"
+                          disabled={store.isActiveScheduler}
+                        />
+                        <span>-</span>
+                        <input
+                          type="time"
+                          value={item().endTime}
+                          onInput={(e) =>
+                            handleItemChange(index, 'endTime', e.currentTarget.value)
+                          }
+                          class="p-2 border rounded-lg bg-gray-50"
+                          disabled={store.isActiveScheduler}
+                        />
+                      </div>
+                      <div class="flex items-center gap-2 w-full md:w-48">
+                        <i class="fa-solid fa-sun text-yellow-500"></i>
+                        <input
+                          type="range"
+                          min="-1"
+                          max="255"
+                          value={item().brightness}
+                          onInput={(e) =>
+                            handleItemChange(
+                              index,
+                              'brightness',
+                              parseInt(e.currentTarget.value),
+                            )
+                          }
+                          class="w-full"
+                          disabled={store.isActiveScheduler}
+                        />
+                        <span>
+                          {item().brightness === -1
+                            ? 'Auto'
+                            : `${Math.round((item().brightness / 255) * 100)}%`}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </Index>
@@ -222,7 +236,7 @@ const Scheduler: Component = () => {
                   class="hover:bg-green-600 transition-colors"
                 >
                   <i class="fa-solid fa-plus mr-2" />
-                  Add Plugin
+                  Add Item
                 </Button>
 
                 <Show when={store.schedule.length > 0}>

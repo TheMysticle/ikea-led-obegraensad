@@ -190,6 +190,9 @@ void setLedWallPower(uint8_t brightness)
             // Also update our runtime variable with this new specific value
             lastKnownBrightness = brightness;
         }
+        if (Scheduler.isActive) {
+            Scheduler.isBrightnessOverridden = true;
+        }
     }
 }
 

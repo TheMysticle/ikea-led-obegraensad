@@ -10,7 +10,9 @@ export enum SYSTEM_STATUS {
 
 export interface ScheduleItem {
   pluginId: number;
-  duration: number;
+  startTime: string; // "HH:MM" format
+  endTime: string;   // "HH:MM" format
+  brightness: number; // 0-255, or -1 for 'don't change'
 }
 
 export interface StoreActions {
@@ -28,6 +30,7 @@ export interface StoreActions {
 
 export interface Store {
   isActiveScheduler: boolean;
+  activeScheduleIndex: number; // Add this
   rotation: number;
   brightness: number;
   indexMatrix: number[];

@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "websocket.h"
+#include <time.h>
 
 PluginScheduler &PluginScheduler::getInstance()
 {
@@ -7,26 +8,27 @@ PluginScheduler &PluginScheduler::getInstance()
   return instance;
 }
 
-void PluginScheduler::addItem(int pluginId, unsigned long durationSeconds)
+void PluginScheduler::addItem(int pluginId, int startTime, int endTime, int brightness)
 {
   ScheduleItem item = {
       .pluginId = pluginId,
-      .duration = durationSeconds * 1000 // Convert to milliseconds
-  };
+      .startTime = startTime,
+      .endTime = endTime,
+      .brightness = brightness};
   schedule.push_back(item);
 }
 
 void PluginScheduler::clearSchedule(bool emptyStorage)
 {
   schedule.clear();
-  currentIndex = 0;
+  currentScheduleIndex = -1;
   isActive = false;
 #ifdef ENABLE_STORAGE
   if (emptyStorage)
   {
     storage.begin("led-wall", false);
-    storage.putString("schedule", "");
-    storage.putInt("scheduleactive", 0);
+    storage.putString("schedule", "[]"); // Store as empty JSON array
+    storage.putBool("scheduleactive", false);
     storage.end();
   }
 #endif
@@ -36,15 +38,15 @@ void PluginScheduler::start()
 {
   if (!schedule.empty())
   {
-    currentIndex = 0;
-    lastSwitch = millis();
     isActive = true;
+    isBrightnessOverridden = false; // Reset override when starting
+    currentScheduleIndex = -1;     // Force re-evaluation on next update
 #ifdef ENABLE_STORAGE
     storage.begin("led-wall", false);
-    storage.putInt("scheduleactive", 1);
+    storage.putBool("scheduleactive", true);
     storage.end();
 #endif
-    switchToCurrentPlugin();
+    update(); // Run an initial update to set the state immediately
   }
 }
 
@@ -53,51 +55,95 @@ void PluginScheduler::stop()
   isActive = false;
 #ifdef ENABLE_STORAGE
   storage.begin("led-wall", false);
-  storage.putInt("scheduleactive", 0);
+  storage.putBool("scheduleactive", false);
   storage.end();
 #endif
+  // Optional: Revert to the default persisted plugin when scheduler stops
+  pluginManager.activatePersistedPlugin();
+  sendMinimalInfo();
 }
 
 void PluginScheduler::update()
 {
   if (!isActive || schedule.empty())
-    return;
-
-  unsigned long currentTime = millis();
-  if (currentTime - lastSwitch >= schedule[currentIndex].duration)
   {
-    currentIndex = (currentIndex + 1) % schedule.size();
-    lastSwitch = currentTime;
-    switchToCurrentPlugin();
+    return;
+  }
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo))
+  {
+    return; // Cannot get time
+  }
+
+  int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+  int newActiveIndex = -1;
+
+  // Find which schedule item should be active
+  for (int i = 0; i < schedule.size(); ++i)
+  {
+    const auto &item = schedule[i];
+    bool isCurrentlyActive = false;
+    if (item.startTime <= item.endTime)
+    {
+      // Normal case: 08:00 - 17:00
+      isCurrentlyActive = (nowMinutes >= item.startTime && nowMinutes < item.endTime);
+    }
+    else
+    {
+      // Spans midnight: 22:00 - 02:00
+      isCurrentlyActive = (nowMinutes >= item.startTime || nowMinutes < item.endTime);
+    }
+
+    if (isCurrentlyActive)
+    {
+      newActiveIndex = i;
+      break; // First match wins
+    }
+  }
+
+  // Check if the active schedule has changed
+  if (newActiveIndex != currentScheduleIndex)
+  {
+    currentScheduleIndex = newActiveIndex;
+    applyScheduleItem(currentScheduleIndex);
   }
 }
 
-void PluginScheduler::switchToCurrentPlugin()
+void PluginScheduler::applyScheduleItem(int index)
 {
-  if (currentIndex < schedule.size())
+  isBrightnessOverridden = false; // A new schedule is taking over, reset override
+
+  if (index == -1)
   {
-    pluginManager.setActivePluginById(schedule[currentIndex].pluginId);
-#ifdef ENABLE_SERVER
-    sendMinimalInfo();
-#endif
+    // No schedule is active, revert to default plugin
+    pluginManager.activatePersistedPlugin();
   }
+  else
+  {
+    const auto &item = schedule[index];
+    pluginManager.setActivePluginById(item.pluginId);
+    if (item.brightness != -1)
+    {
+      Screen.setBrightness(item.brightness, false); // Don't persist schedule brightness
+    }
+  }
+  sendMinimalInfo(); // Notify clients of the change
 }
 
 void PluginScheduler::init()
 {
 #ifdef ENABLE_STORAGE
   storage.begin("led-wall", true);
-  int storedActive = storage.getInt("scheduleactive", 0);
-  bool scheduleIsSet = setScheduleByJSONString(storage.getString("schedule"));
-
-  isActive = (storedActive == 1);
+  isActive = storage.getBool("scheduleactive", false);
+  String scheduleStr = storage.getString("schedule", "[]");
   storage.end();
 
-  if (isActive && !schedule.empty())
+  setScheduleByJSONString(scheduleStr);
+
+  if (isActive)
   {
-    currentIndex = 0;
-    lastSwitch = millis();
-    switchToCurrentPlugin();
+    update(); // Immediately check and apply the current schedule
   }
 #endif
 }
@@ -114,6 +160,7 @@ bool PluginScheduler::setScheduleByJSONString(String scheduleJson)
 
   if (error)
   {
+    Serial.println("Failed to parse schedule JSON");
     return false;
   }
 
@@ -123,22 +170,37 @@ bool PluginScheduler::setScheduleByJSONString(String scheduleJson)
   storage.end();
 #endif
 
-  Scheduler.clearSchedule();
+  clearSchedule(false); // Clear current schedule without touching storage
 
   JsonArray schedule = doc.as<JsonArray>();
   for (JsonObject item : schedule)
   {
-    if (!item.containsKey("pluginId") || !item.containsKey("duration"))
+    if (!item.containsKey("pluginId") || !item.containsKey("startTime") || !item.containsKey("endTime"))
     {
       return false;
     }
 
     int pluginId = item["pluginId"].as<int>();
-    unsigned long duration = item["duration"].as<unsigned long>();
-    Scheduler.addItem(pluginId, duration);
+    const char *startTimeStr = item["startTime"]; // "HH:MM"
+    const char *endTimeStr = item["endTime"];   // "HH:MM"
+    int brightness = item["brightness"] | -1; // Default to -1 if not present
+
+    int startHour, startMin, endHour, endMin;
+    sscanf(startTimeStr, "%d:%d", &startHour, &startMin);
+    sscanf(endTimeStr, "%d:%d", &endHour, &endMin);
+
+    int startTimeInMinutes = startHour * 60 + startMin;
+    int endTimeInMinutes = endHour * 60 + endMin;
+
+    addItem(pluginId, startTimeInMinutes, endTimeInMinutes, brightness);
   }
 
   return true;
+}
+
+int PluginScheduler::getActiveScheduleIndex() const
+{
+  return currentScheduleIndex;
 }
 
 PluginScheduler &Scheduler = PluginScheduler::getInstance();

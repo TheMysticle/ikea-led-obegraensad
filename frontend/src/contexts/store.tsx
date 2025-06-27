@@ -33,6 +33,7 @@ const connectionStatus = [
 
 const [mainStore, setStore] = createStore<Store>({
   isActiveScheduler: false,
+  activeScheduleIndex: -1, // Add this
   rotation: 0,
   plugins: [],
   plugin: 1,
@@ -47,6 +48,7 @@ const [mainStore, setStore] = createStore<Store>({
 
 const actions: StoreActions = {
   setIsActiveScheduler: (isActive) => setStore('isActiveScheduler', isActive),
+  setActiveScheduleIndex: (index) => setStore('activeScheduleIndex', index), // Add this
   setRotation: (rotation) => setStore('rotation', rotation),
   setPlugins: (plugins) => setStore('plugins', plugins),
   setPlugin: (plugin) => setStore('plugin', plugin),
@@ -74,13 +76,18 @@ export const StoreProvider: ParentComponent = (props) => {
 
     switch (json.event) {
       case 'minimal-info':
-        actions.setSystemStatus(
-          Object.values(SYSTEM_STATUS)[json.status as number],
-        );
-        actions.setRotation(json.rotation);
-        actions.setBrightness(json.brightness);
-        actions.setPlugin(json.plugin as number);
-        actions.setIsActiveScheduler(json.scheduleActive);
+        batch(() => { // Use batch to prevent multiple re-renders
+            actions.setSystemStatus(
+              Object.values(SYSTEM_STATUS)[json.status as number],
+            );
+            actions.setRotation(json.rotation);
+            actions.setBrightness(json.brightness);
+            actions.setPlugin(json.plugin as number);
+            actions.setIsActiveScheduler(json.scheduleActive);
+            if (json.activeScheduleIndex !== undefined) {
+              actions.setActiveScheduleIndex(json.activeScheduleIndex);
+            }
+        });
         break;
       case 'info':
         batch(() => {
@@ -93,6 +100,9 @@ export const StoreProvider: ParentComponent = (props) => {
 
           if (json.schedule) {
             actions.setSchedule(json.schedule);
+          }
+          if (json.activeScheduleIndex !== undefined) {
+            actions.setActiveScheduleIndex(json.activeScheduleIndex);
           }
 
           if (!mainStore.plugins.length) {

@@ -28,7 +28,14 @@ void sendInfo()
   {
     JsonObject scheduleItem = scheduleArray.createNestedObject();
     scheduleItem["pluginId"] = item.pluginId;
-    scheduleItem["duration"] = item.duration / 1000; // Convert milliseconds to seconds
+    
+    char startTimeStr[6], endTimeStr[6];
+    sprintf(startTimeStr, "%02d:%02d", item.startTime / 60, item.startTime % 60);
+    sprintf(endTimeStr, "%02d:%02d", item.endTime / 60, item.endTime % 60);
+    scheduleItem["startTime"] = startTimeStr;
+    scheduleItem["endTime"] = endTimeStr;
+
+    scheduleItem["brightness"] = item.brightness;
   }
 
   JsonArray plugins = jsonDocument.createNestedArray("plugins");
@@ -57,6 +64,7 @@ void sendMinimalInfo()
   jsonDocument["rotation"] = Screen.currentRotation;
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
+  jsonDocument["activeScheduleIndex"] = Scheduler.getActiveScheduleIndex(); // ADD THIS LINE
 
   String output;
   serializeJson(jsonDocument, output);
@@ -110,7 +118,6 @@ void onWsEvent(
             int pluginId = wsRequest["plugin"];
             Scheduler.clearSchedule();
             pluginManager.setActivePluginById(pluginId);
-
             sendMinimalInfo();
           }
           else if (!strcmp(event, "persist-plugin"))
@@ -130,6 +137,9 @@ void onWsEvent(
           {
             uint8_t brightness = wsRequest["brightness"].as<uint8_t>();
             Screen.setBrightness(brightness, true);
+            if (Scheduler.isActive) {
+                Scheduler.isBrightnessOverridden = true;
+            }
           }
         }
       }

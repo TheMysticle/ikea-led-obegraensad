@@ -105,6 +105,11 @@ void handleSetBrightness(AsyncWebServerRequest *request)
     }
 
     Screen.setBrightness(value, true);
+    if (Scheduler.isActive) {
+        Scheduler.isBrightnessOverridden = true;
+    }
+
+    jsonResponse["status"] = "success";
 
     jsonResponse["status"] = "success";
     jsonResponse["message"] = "Brightness set successfully";
@@ -159,7 +164,15 @@ void handleGetInfo(AsyncWebServerRequest *request)
     {
         JsonObject scheduleItem = scheduleArray.createNestedObject();
         scheduleItem["pluginId"] = item.pluginId;
-        scheduleItem["duration"] = item.duration / 1000; // Convert milliseconds to seconds
+
+        // Convert minutes back to HH:MM for the frontend
+        char startTimeStr[6], endTimeStr[6];
+        sprintf(startTimeStr, "%02d:%02d", item.startTime / 60, item.startTime % 60);
+        sprintf(endTimeStr, "%02d:%02d", item.endTime / 60, item.endTime % 60);
+        scheduleItem["startTime"] = startTimeStr;
+        scheduleItem["endTime"] = endTimeStr;
+
+        scheduleItem["brightness"] = item.brightness;
     }
 
     JsonArray plugins = jsonDocument.createNestedArray("plugins");
@@ -180,15 +193,15 @@ void handleGetInfo(AsyncWebServerRequest *request)
     request->send(200, "application/json", output);
 }
 
-void handleSetSchedule(AsyncWebServerRequest *request)
+void handleSetSchedule(AsyncWebServerRequest *request, const String& body)
 {
-    bool scheduleIsSet = Scheduler.setScheduleByJSONString(request->arg("schedule"));
+    bool scheduleIsSet = Scheduler.setScheduleByJSONString(body);
 
     StaticJsonDocument<256> jsonResponse;
     if (!scheduleIsSet)
     {
         jsonResponse["error"] = true;
-        jsonResponse["message"] = "Schedule cannot be set";
+        jsonResponse["message"] = "Schedule cannot be set. Invalid JSON format.";
         String output;
         serializeJson(jsonResponse, output);
         request->send(400, "application/json", output);
