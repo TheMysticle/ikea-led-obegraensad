@@ -59,6 +59,17 @@ uint8_t lastKnownBrightness = 128; // Default to 50% brightness
 Espalexa espalexa; // Create Espalexa instance
 // --- END ADDITIONS FOR ESPALEXA ---
 
+// --- CUSTOM BUTTON CONFIGURATION ---
+// Add the plugin IDs you want to cycle through with a SINGLE press.
+std::vector<int> buttonCyclePlugins = {12, 16, 3, 7, 6, 11, 2}; 
+int currentCycleIndex = 0;
+
+// Define the plugin to activate on a DOUBLE press.
+const int DOUBLE_PRESS_PLUGIN_ID = 19; // TessiePlugin
+
+// NOTE: Long press is handled in the pressHandler to activate the persisted default plugin.
+// --- END CUSTOM BUTTON CONFIGURATION ---
+
 unsigned long previousMillis = 0;
 unsigned long interval = 30000;
 
@@ -125,19 +136,35 @@ void connectToWiFi()
 
 void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
 {
+  // Any button press should stop the scheduler and allow manual control.
+  if (Scheduler.isActive) {
+    Scheduler.stop();
+  }
+
   switch (pattern)
   {
   case BfButton::SINGLE_PRESS:
-    if (currentStatus != LOADING)
+    if (currentStatus != LOADING && !buttonCyclePlugins.empty())
     {
-      Scheduler.clearSchedule();
-      pluginManager.activateNextPlugin();
+      // Move to the next plugin in our custom cycle list
+      currentCycleIndex = (currentCycleIndex + 1) % buttonCyclePlugins.size();
+      int pluginToActivate = buttonCyclePlugins[currentCycleIndex];
+      pluginManager.setActivePluginById(pluginToActivate);
+    }
+    break;
+
+  case BfButton::DOUBLE_PRESS:
+     if (currentStatus != LOADING)
+    {
+      // Activate the specific plugin defined for double press
+      pluginManager.setActivePluginById(DOUBLE_PRESS_PLUGIN_ID);
     }
     break;
 
   case BfButton::LONG_PRESS:
     if (currentStatus != LOADING)
     {
+      // Activate the user's persisted default plugin
       pluginManager.activatePersistedPlugin();
     }
     break;
@@ -167,6 +194,9 @@ void setLedWallPower(uint8_t brightness)
         Screen.clear(); // Clear the display buffer
         // Set brightness to 0 and PERSIST this "off" state
         Screen.setBrightness(0, true);
+        if (Scheduler.isActive) {
+            Scheduler.isBrightnessOverridden = true;
+        }
     }
     // This is the "Turn On" or "Dim" command
     else
