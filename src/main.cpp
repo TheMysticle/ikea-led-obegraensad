@@ -141,12 +141,14 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
     Scheduler.stop();
   }
 
+  // Get the currently active plugin
+  Plugin *activePlugin = pluginManager.getActivePlugin();
+
   switch (pattern)
   {
   case BfButton::SINGLE_PRESS:
     if (currentStatus != LOADING && !buttonCyclePlugins.empty())
     {
-      // Move to the next plugin in our custom cycle list
       currentCycleIndex = (currentCycleIndex + 1) % buttonCyclePlugins.size();
       int pluginToActivate = buttonCyclePlugins[currentCycleIndex];
       pluginManager.setActivePluginById(pluginToActivate);
@@ -156,16 +158,24 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
   case BfButton::DOUBLE_PRESS:
      if (currentStatus != LOADING)
     {
-      // Activate the specific plugin defined for double press
       pluginManager.setActivePluginById(DOUBLE_PRESS_PLUGIN_ID);
     }
     break;
 
   case BfButton::LONG_PRESS:
-    if (currentStatus != LOADING)
+    if (currentStatus != LOADING && activePlugin != nullptr)
     {
-      // Activate the user's persisted default plugin
-      pluginManager.activatePersistedPlugin();
+      // Check if the Tixy plugin is currently active
+      if (strcmp(activePlugin->getName(), "TixyLand") == 0)
+      {
+        // Cast the active plugin to our TixyPlugin type and call the new method
+        static_cast<TixyPlugin*>(activePlugin)->nextPreset();
+      }
+      else
+      {
+        // If it's not the Tixy plugin, perform the default long-press action
+        pluginManager.activatePersistedPlugin();
+      }
     }
     break;
   }

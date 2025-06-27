@@ -2,10 +2,14 @@
 
 #define X_COL i % 16
 #define Y_COL i / 16
+#define PRESET_COUNT 24 // Total number of presets
 
 void TixyPlugin::setup()
 {
-  // loading screen
+  // Reset preset index when the plugin is activated
+  currentPreset = 0;
+  
+  // You can keep the loading screen if you like, or remove it.
   Screen.setPixel(4, 7, 1);
   Screen.setPixel(5, 7, 1);
   Screen.setPixel(7, 7, 1);
@@ -21,9 +25,17 @@ void TixyPlugin::loop()
   for (uint8_t i = 0; i < 255; i++)
   {
     float val = TixyPlugin::code(t, i, X_COL, Y_COL);
-    Screen.setPixel(X_COL, Y_COL, val > 0.01, max((uint8_t)0, (uint8_t)min((uint16_t)255, (uint16_t)(val * 255))));
+    // Use an absolute value for brightness to handle negative sin/cos results
+    Screen.setPixel(X_COL, Y_COL, val != 0, max((uint8_t)0, (uint8_t)min((uint16_t)255, (uint16_t)(abs(val) * 255))));
   }
 }
+
+// New method to cycle through presets
+void TixyPlugin::nextPreset()
+{
+  currentPreset = (currentPreset + 1) % PRESET_COUNT;
+}
+
 
 // This code adapted from
 // https://github.com/owenmcateer/tixy.land-display
@@ -32,7 +44,8 @@ void TixyPlugin::loop()
 float TixyPlugin::code(double t, double i, double x, double y)
 {
   y = y * 1.4;
-  switch (millis() / (15000L) % 24)
+  // Use our state variable instead of time-based switching
+  switch (currentPreset)
   {
   /**
    * Motus Art
