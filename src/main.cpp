@@ -52,10 +52,11 @@
 #define ESPALEXA_ASYNC // Important: Define this before including Espalexa.h!
 #include <Espalexa.h>
 
+BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
+uint8_t lastKnownBrightness = 128; // Default to 50% brightness
+
 Espalexa espalexa; // Create Espalexa instance
 // --- END ADDITIONS FOR ESPALEXA ---
-
-BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
 
 unsigned long previousMillis = 0;
 unsigned long interval = 30000;
@@ -146,27 +147,50 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
 // Callback function for Alexa control
 void setLedWallPower(uint8_t brightness)
 {
-  Serial.print("LED Wall brightness changed to: ");
-  Serial.println(brightness);
+    Serial.print("Alexa command received. New brightness: ");
+    Serial.println(brightness);
 
-  if (brightness == 0)
-  {
-    Screen.clear(); // Clear the screen when off
-    Screen.setBrightness(0, true); // Set brightness to 0 and persist
-  }
-  else
-  {
-    // If turning on or dimming, set brightness and ensure a plugin is running
-    Screen.setBrightness(brightness, true); // Set new brightness and persist
-    // You might want to reactivate the last active plugin or a default one
-    // if the screen was completely off.
-    // For simplicity, we'll just ensure brightness is set.
-    // If pluginManager.runActivePlugin() is called in loop(), it will display.
-    // If not, you might need to call pluginManager.activatePersistedPlugin();
-    // or pluginManager.activateNextPlugin(); here or start a default plugin.
-  }
+    // This is the "Turn Off" command
+    if (brightness == 0)
+    {
+        // Get the brightness from the screen class BEFORE we turn it off
+        uint8_t currentBrightness = Screen.getCurrentBrightness();
+        if (currentBrightness > 0)
+        {
+            // Save the current brightness level into our runtime variable
+            lastKnownBrightness = currentBrightness;
+            Serial.print("Saving last known brightness for this session: ");
+            Serial.println(lastKnownBrightness);
+        }
+        
+        Screen.clear(); // Clear the display buffer
+        // Set brightness to 0 and PERSIST this "off" state
+        Screen.setBrightness(0, true);
+    }
+    // This is the "Turn On" or "Dim" command
+    else
+    {
+        // This is a generic "Turn On" command (value=255) from a fully off state
+        if (Screen.getCurrentBrightness() == 0 && brightness == 255)
+        {
+            Serial.print("Restoring last known brightness: ");
+            Serial.println(lastKnownBrightness);
+            // Restore the saved brightness instead of using Alexa's 255, and PERSIST it
+            Screen.setBrightness(lastKnownBrightness, true);
+        }
+        else
+        {
+            // This is a specific dimming command (e.g., "set to 30%").
+            // Use the value from Alexa and PERSIST it.
+            Serial.print("Setting specific brightness to: ");
+            Serial.println(brightness);
+            Screen.setBrightness(brightness, true);
+            
+            // Also update our runtime variable with this new specific value
+            lastKnownBrightness = brightness;
+        }
+    }
 }
-// --- END ADDITION FOR ESPALEXA ---
 
 
 void baseSetup()
@@ -224,6 +248,14 @@ void baseSetup()
 
   pluginManager.init();
   Scheduler.init();
+
+#ifdef ENABLE_STORAGE
+    // Sync our runtime brightness variable with the value loaded from storage
+    uint8_t storedBrightness = Screen.getCurrentBrightness();
+    if (storedBrightness > 0) {
+        lastKnownBrightness = storedBrightness;
+    }
+#endif
 
   btn.onPress(pressHandler)
       .onDoublePress(pressHandler)
