@@ -2,9 +2,13 @@
 #include "messages.h"
 #include "webhandler.h"
 
+#define ESPALEXA_ASYNC
+#include <Espalexa.h>
+
 #ifdef ENABLE_SERVER
 
 AsyncWebServer server(80);
+extern Espalexa espalexa;
 
 void initWebServer()
 {
@@ -13,8 +17,6 @@ void initWebServer()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
   server.on("/", HTTP_GET, startGui);
-  // server.onNotFound([](AsyncWebServerRequest *request)
-  //                   { request->send(404, "text/plain", "Page not found!"); });
 
   // Route to handle  http://your-server/message?text=Hello&repeat=3&id=42&delay=30&graph=1,2,3,4&miny=0&maxy=15
   server.on("/api/message", HTTP_GET, handleMessage);
@@ -37,7 +39,23 @@ void initWebServer()
 
   server.on("/api/storage/clear", HTTP_GET, handleClearStorage);
 
-  // REMOVE THIS LINE: server.begin(); // This will be handled by Espalexa.begin(&server) in main.cpp
+
+  // --- START OF THE CRITICAL FIX ---
+  // Add a "Not Found" handler that first tries to process the request with Espalexa
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    // First, check if Espalexa can handle the request
+    if (espalexa.handleAlexaApiCall(request)) {
+      // If it returns true, the request was for Alexa, and has been handled.
+      return;
+    }
+    
+    // If Espalexa did not handle it, then it's a true 404
+    request->send(404, "text/plain", "Page not found!");
+  });
+  // --- END OF THE CRITICAL FIX ---
+
+
+  // REMOVED: server.begin(); // This will be handled by Espalexa.begin(&server) in main.cpp
 }
 
 #endif
