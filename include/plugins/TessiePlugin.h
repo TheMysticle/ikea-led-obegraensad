@@ -4,10 +4,10 @@
 
 #include "PluginManager.h"
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h> // We now need this here
 #include <ArduinoJson.h>
 #include "secrets.h" 
 
-// --- ADDED: For managing the background network task ---
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -20,23 +20,21 @@ private:
     int pulseCounter = 0;
     bool pulseUp = true;
     unsigned long lastApiCallTime = 0;
-    
-    // --- MODIFIED: Refresh interval is now a variable, not a constant ---
-    unsigned long apiUpdateInterval = 300000; // Default to 5 minutes
-
-    // --- ADDED: Variables for background loading ---
-    // This flag tells the main loop we are waiting for data
+    unsigned long apiUpdateInterval = 300000; 
     volatile bool isLoading = true; 
-    // This handle lets us manage the background task
     TaskHandle_t networkTaskHandle = NULL;
+
+    // --- NEW: Persistent Client Objects ---
+    // These are created once when the plugin loads and are reused for every
+    // network request. This is the key to preventing resource leaks.
+    HTTPClient httpClient;
+    WiFiClientSecure wifiClient;
 
     void fetchChargeState();
     void drawError();
     void drawCharge();
     void drawStatusIcon();
     
-    // --- ADDED: The function that will run on the second core ---
-    // It must be static, but we pass 'this' instance to it.
     static void networkTaskFunction(void *pvParameters);
 
 public:
