@@ -36,7 +36,7 @@ private:
     static const unsigned int AUTO_PLAY_DELAY = 100;
     // NEW: Adds randomness to the AI's scoring, making it less perfect.
     // Higher values = more mistakes. A good starting value is 20-30.
-    static const uint8_t AI_INACCURACY_WEIGHT = 25; // <-- THE NEW NERF
+    static const uint8_t AI_INACCURACY_WEIGHT = 30; // <-- THE NEW NERF
 
     // --- Network Control ---
     WiFiUDP udp;
