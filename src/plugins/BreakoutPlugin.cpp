@@ -1,164 +1,194 @@
-// copyright https://elektro.turanis.de/html/prj104/index.html
 #include "plugins/BreakoutPlugin.h"
 
-void BreakoutPlugin::initGame()
-{
-  Screen.clear();
+void BreakoutPlugin::setup() {
+  gameState = STATE_GAME_OVER;
+}
 
-  this->ballDelay = this->BALL_DELAY_MAX; // This can still be used to adjust ball speed dynamically
-  this->score = 0;
-  this->level = 0;
+const char *BreakoutPlugin::getName() const {
+  return "Breakout";
+}
+
+void BreakoutPlugin::initGame() {
+  Screen.clear();
+  ballDelay = BALL_DELAY_MAX;
+  level = 0;
   newLevel();
 }
 
-void BreakoutPlugin::initBricks()
-{
-  this->destroyedBricks = 0;
-  for (byte i = 0; i < this->BRICK_AMOUNT; i++)
-  {
-    this->bricks[i].x = i % this->X_MAX;
-    this->bricks[i].y = i / this->X_MAX;
-    Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_ON);
-    delay(25);
-  }
-}
-
-void BreakoutPlugin::newLevel()
-{
+void BreakoutPlugin::newLevel() {
+  gameState = STATE_RUNNING;
   udp.begin(UDP_PORT);
-  this->controlMode = CONTROL_AUTO;
-  this->lastUdpPacketTime = 0;
-  this->lastGameTick = millis();
-  this->lastAutoPaddleMove = millis();
-  Serial.println("Breakout: Started in AUTO mode. Listening for controller...");
+  controlMode = CONTROL_AUTO;
+  lastUdpPacketTime = 0;
+  lastGameTick = millis();
+  lastAutoPlayMove = millis();
+  aiTargetX = X_MAX / 2; // Start by targeting the center
+  wasLastHitCenter = false;
+  Serial.println("Breakout: Started in smart AUTO mode. Listening for controller...");
 
-  this->initBricks();
-  for (byte i = 0; i < this->PADDLE_WIDTH; i++)
-  {
-    this->paddle[i].x = (this->X_MAX / 2) - (this->PADDLE_WIDTH / 2) + i;
-    this->paddle[i].y = this->Y_MAX - 1;
-    Screen.setPixelAtIndex(this->paddle[i].y * this->X_MAX + this->paddle[i].x, this->LED_TYPE_ON);
+  // Init Bricks
+  destroyedBricks = 0;
+  for (byte i = 0; i < BRICK_AMOUNT; i++) {
+    bricks[i].x = i % X_MAX;
+    bricks[i].y = i / X_MAX;
+    Screen.setPixel(bricks[i].x, bricks[i].y, 1);
   }
-  this->ball.x = this->paddle[1].x;
-  this->ball.y = this->paddle[1].y - 1;
-
-  Screen.setPixelAtIndex(ball.y * this->X_MAX + ball.x, this->LED_TYPE_ON);
-  this->ballMovement[0] = 1;
-  this->ballMovement[1] = -1;
   
-  this->level++;
-  this->gameState = this->GAME_STATE_RUNNING;
+  // Init Paddle
+  for (byte i = 0; i < PADDLE_WIDTH; i++) {
+    paddle[i].x = (X_MAX / 2) - (PADDLE_WIDTH / 2) + i;
+    paddle[i].y = Y_MAX - 1;
+    Screen.setPixel(paddle[i].x, paddle[i].y, 1);
+  }
+
+  // Init Ball
+  ball.x = paddle[PADDLE_WIDTH / 2].x;
+  ball.y = paddle[0].y - 1;
+  ballMovement[0] = (random(2) == 0) ? 1 : -1;
+  ballMovement[1] = -1;
+  Screen.setPixel(ball.x, ball.y, 1);
+  level++;
 }
 
-void BreakoutPlugin::updateBall()
-{
+void BreakoutPlugin::gameOver() {
+  udp.stop();
+  gameState = STATE_GAME_OVER;
+  Screen.scrollText("GAME OVER", 60);
+  delay(2000);
+}
 
-  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_OFF);
-
-  if (this->ballMovement[1] == 1)
-  {
-    if (this->ball.y == (this->Y_MAX - 1))
-    {
-      this->end();
-      return;
+void BreakoutPlugin::autoPlayMove() {
+  if (ballMovement[1] > 0) {
+    int predictedBallX = ball.x;
+    int simY = ball.y;
+    int simMoveX = ballMovement[0];
+    while (simY < paddle[0].y - 1) {
+      predictedBallX += simMoveX;
+      simY++;
+      if (predictedBallX <= 0 || predictedBallX >= X_MAX - 1) simMoveX *= -1;
     }
-    this->checkPaddleCollision();
+    predictedBallX += random(-AI_NERF_FACTOR, AI_NERF_FACTOR + 1);
+
+    // --- AI STRATEGY V5: USING MEMORY TO BREAK LOOPS ---
+    if (wasLastHitCenter) {
+        // The last hit was boring. Force an angled shot to break the loop.
+        // Deliberately aim to hit the ball with one of the paddle's outer edges.
+        if (random(2) == 0) {
+            // Aim for the paddle's center to be to the RIGHT of the ball
+            aiTargetX = predictedBallX + (PADDLE_WIDTH / 2) - 1;
+        } else {
+            // Aim for the paddle's center to be to the LEFT of the ball
+            aiTargetX = predictedBallX - (PADDLE_WIDTH / 2) + 1;
+        }
+        // By forcing a non-optimal hit, we guarantee an angle.
+    } else {
+        // If the last hit was good, use the normal smart strategy.
+        int idealTargetX;
+        if (predictedBallX < X_MAX / 2) idealTargetX = predictedBallX - (PADDLE_WIDTH / 2);
+        else idealTargetX = predictedBallX + (PADDLE_WIDTH / 2);
+
+        const int minPaddleCenter = PADDLE_WIDTH / 2;
+        const int maxPaddleCenter = X_MAX - 1 - (PADDLE_WIDTH / 2);
+        int actualTargetX = constrain(idealTargetX, minPaddleCenter, maxPaddleCenter);
+
+        if (idealTargetX != actualTargetX) {
+            if (actualTargetX == minPaddleCenter) aiTargetX = minPaddleCenter + 1;
+            else aiTargetX = maxPaddleCenter - 1;
+        } else {
+            aiTargetX = actualTargetX;
+        }
+    }
+    
+    // Final constraint to ensure the target is always valid
+    const int minPaddleCenter = PADDLE_WIDTH / 2;
+    const int maxPaddleCenter = X_MAX - 1 - (PADDLE_WIDTH / 2);
+    aiTargetX = constrain(aiTargetX, minPaddleCenter, maxPaddleCenter);
+
+  } else {
+    aiTargetX = X_MAX / 2;
   }
 
-  for (byte i = 0; i < this->BRICK_AMOUNT; i++)
-  {
-    if (this->bricks[i].x == (this->ball.x + this->ballMovement[0]) && 
-        this->bricks[i].y == (this->ball.y + this->ballMovement[1]))
-    {
-      this->hitBrick(i);
-      this->ballMovement[1] *= -1;
+  int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
+  if (paddleCenter < aiTargetX - AI_TARGET_TOLERANCE) movePaddle(1);
+  else if (paddleCenter > aiTargetX + AI_TARGET_TOLERANCE) movePaddle(-1);
+}
+
+void BreakoutPlugin::updateBall() {
+  Screen.setPixel(ball.x, ball.y, 0);
+
+  // Check for paddle miss (game over)
+  if (ball.y >= Y_MAX - 1) {
+    gameOver();
+    return;
+  }
+
+  // Check for collision with top wall
+  if (ball.y <= 0) ballMovement[1] *= -1;
+
+  // Check for side wall collisions
+  if (ball.x <= 0 || ball.x >= X_MAX - 1) ballMovement[0] *= -1;
+
+  // Check for paddle collision
+  checkPaddleCollision();
+
+  // Check for brick collision
+  int nextBallX = ball.x + ballMovement[0];
+  int nextBallY = ball.y + ballMovement[1];
+  for (byte i = 0; i < BRICK_AMOUNT; i++) {
+    if (bricks[i].x == nextBallX && bricks[i].y == nextBallY) {
+      hitBrick(i);
+      ballMovement[1] *= -1;
       break;
     }
   }
 
-  if (this->destroyedBricks >= this->BRICK_AMOUNT)
-  {
-    this->gameState = this->GAME_STATE_LEVEL;
+  if (destroyedBricks >= BRICK_AMOUNT) {
+    gameState = STATE_LEVEL;
     return;
   }
-
-  if (this->ball.x <= 0 || this->ball.x >= (this->X_MAX - 1))
-  {
-    this->ballMovement[0] *= -1;
-  }
-  if (this->ball.y <= 0)
-  {
-    this->ballMovement[1] *= -1;
-  }
-
-  this->ball.x += this->ballMovement[0];
-  this->ball.y += this->ballMovement[1];
-
-  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_ON);
-}
-
-void BreakoutPlugin::hitBrick(byte i)
-{
-  Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_OFF);
-  this->bricks[i].x = 255;
-  this->bricks[i].y = 255;
-  this->score++;
-  this->destroyedBricks++;
-  if (this->ballDelay > this->BALL_DELAY_MIN)
-  {
-    this->ballDelay -= this->BALL_DELAY_STEP;
-  }
-}
-
-void BreakoutPlugin::checkPaddleCollision()
-{
-  if ((this->paddle[0].y - 1) != this->ball.y) return;
   
-  if (this->ballMovement[0] == 1 && (this->paddle[0].x - 1) == this->ball.x ||
-      this->ballMovement[0] == -1 && (this->paddle[this->PADDLE_WIDTH - 1].x + 1) == this->ball.x) {
-    this->ballMovement[0] *= -1;
-    this->ballMovement[1] *= -1;
-    return;
-  }
-  if (paddle[this->PADDLE_WIDTH / 2].x == this->ball.x) {
-    this->ballMovement[0] = 0;
-    this->ballMovement[1] *= -1;
-    return;
-  }
-  for (byte i = 0; i < this->PADDLE_WIDTH; i++) {
-    if (this->paddle[i].x == this->ball.x) {
-      this->ballMovement[1] *= -1;
-      if (random(2) == 0) this->ballMovement[0] = 1;
-      else this->ballMovement[0] = -1;
-      break;
-    }
-  }
+  ball.x += ballMovement[0];
+  ball.y += ballMovement[1];
+  Screen.setPixel(ball.x, ball.y, 1);
 }
 
-void BreakoutPlugin::movePaddle(int direction)
-{
-  int newPaddlePosition = this->paddle[0].x + direction;
-  if (newPaddlePosition >= 0 && newPaddlePosition + this->PADDLE_WIDTH <= this->X_MAX) {
-    for (byte i = 0; i < this->PADDLE_WIDTH; i++) {
-      Screen.setPixelAtIndex(this->paddle[i].y * this->X_MAX + this->paddle[i].x, this->LED_TYPE_OFF);
-    }
-    for (byte i = 0; i < this->PADDLE_WIDTH; i++) {
-      this->paddle[i].x += direction;
-    }
-    for (byte i = 0; i < this->PADDLE_WIDTH; i++) {
-      Screen.setPixelAtIndex(this->paddle[i].y * this->X_MAX + this->paddle[i].x, this->LED_TYPE_ON);
-    }
-  }
+void BreakoutPlugin::hitBrick(byte i) {
+  Screen.setPixel(bricks[i].x, bricks[i].y, 0);
+  bricks[i].x = 255; // Move off-screen
+  destroyedBricks++;
+  if (ballDelay > BALL_DELAY_MIN) ballDelay -= BALL_DELAY_STEP;
 }
 
-void BreakoutPlugin::autoUpdatePaddle()
-{
-  static int moveDirection = 1;
-  int newPaddlePosition = this->paddle[0].x + moveDirection;
-  if (newPaddlePosition < 0 || newPaddlePosition + this->PADDLE_WIDTH > this->X_MAX) {
-    moveDirection *= -1;
+void BreakoutPlugin::checkPaddleCollision() {
+    if (ball.y != paddle[0].y - 1 || ballMovement[1] < 0) return;
+
+    for (byte i = 0; i < PADDLE_WIDTH; i++) {
+        if (paddle[i].x == ball.x) {
+            ballMovement[1] *= -1;
+
+            // --- UPDATE AI MEMORY ---
+            if (i == PADDLE_WIDTH / 2) {
+                wasLastHitCenter = true; // It was a boring center hit
+            } else {
+                wasLastHitCenter = false; // It was an interesting angled hit
+            }
+
+            // Angle logic
+            if (i < PADDLE_WIDTH / 2) ballMovement[0] = -1;
+            else if (i > PADDLE_WIDTH / 2) ballMovement[0] = 1;
+            else ballMovement[0] = 0;
+            return;
+        }
+    }
+}
+
+void BreakoutPlugin::movePaddle(int direction) {
+  int newPos = paddle[0].x + direction;
+  if (newPos >= 0 && (newPos + PADDLE_WIDTH) <= X_MAX) {
+    for(byte i=0; i<PADDLE_WIDTH; i++) Screen.setPixel(paddle[i].x, paddle[i].y, 0);
+    for(byte i=0; i<PADDLE_WIDTH; i++) paddle[i].x += direction;
+    for(byte i=0; i<PADDLE_WIDTH; i++) Screen.setPixel(paddle[i].x, paddle[i].y, 1);
   }
-  movePaddle(moveDirection);
 }
 
 void BreakoutPlugin::checkForUdp() {
@@ -166,75 +196,41 @@ void BreakoutPlugin::checkForUdp() {
   if (packetSize) {
     int len = udp.read(packetBuffer, 255);
     if (len > 0) packetBuffer[len] = 0;
-
     if (strcmp(packetBuffer, "LEFT") == 0 || strcmp(packetBuffer, "RIGHT") == 0 || strcmp(packetBuffer, "PING") == 0) {
       lastUdpPacketTime = millis();
       if (controlMode == CONTROL_AUTO) {
         controlMode = CONTROL_MANUAL;
-        Serial.println("Controller detected! Switching to MANUAL mode.");
+        Serial.println("Controller detected! Switching Breakout to MANUAL mode.");
       }
       if (strcmp(packetBuffer, "LEFT") == 0) movePaddle(-1);
       else if (strcmp(packetBuffer, "RIGHT") == 0) movePaddle(1);
     }
   }
-
   if (controlMode == CONTROL_MANUAL && millis() - lastUdpPacketTime > UDP_TIMEOUT && lastUdpPacketTime != 0) {
     controlMode = CONTROL_AUTO;
     lastUdpPacketTime = 0;
-    Serial.println("Controller timed out. Switching back to AUTO mode.");
+    Serial.println("Controller timed out. Switching Breakout back to AUTO mode.");
   }
 }
 
-void BreakoutPlugin::end()
-{
-  this->gameState = this->GAME_STATE_END;
-  udp.stop();
-  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_ON);
-}
-
-void BreakoutPlugin::setup()
-{
-  this->gameState = this->GAME_STATE_END;
-}
-
-// Final, non-blocking loop
-void BreakoutPlugin::loop()
-{
-  switch (this->gameState)
-  {
-    case this->GAME_STATE_LEVEL:
-      this->newLevel();
-      return;
-    case this->GAME_STATE_END:
-      this->initGame();
-      return;
-    default:
-      break;
+void BreakoutPlugin::loop() {
+  switch (gameState) {
+    case STATE_GAME_OVER: initGame(); return;
+    case STATE_LEVEL: newLevel(); return;
+    case STATE_RUNNING: break; // Continue
   }
 
-  // Always check for network input for instant response
-  checkForUdp(); 
+  checkForUdp();
 
-  // --- THIS IS THE FIX ---
-  // Use the 'ballDelay' variable for the ball's timer.
-  if (millis() - lastGameTick > this->ballDelay) 
-  {
+  if (millis() - lastGameTick > ballDelay) {
     lastGameTick = millis();
-    this->updateBall();
+    updateBall();
   }
 
-  // Use a separate, slower timer for the auto-paddle
-  if (controlMode == CONTROL_AUTO) 
-  {
-    if (millis() - lastAutoPaddleMove > AUTO_PADDLE_DELAY) 
-    {
-        lastAutoPaddleMove = millis();
-        this->autoUpdatePaddle();
+  if (controlMode == CONTROL_AUTO) {
+    if (millis() - lastAutoPlayMove > AUTO_PLAY_DELAY) {
+      lastAutoPlayMove = millis();
+      autoPlayMove();
     }
   }
-}
-
-const char *BreakoutPlugin::getName() const
-{
-  return "Breakout";
 }
