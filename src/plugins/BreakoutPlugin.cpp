@@ -23,6 +23,8 @@ void BreakoutPlugin::newLevel() {
   lastGameTick = millis();
   lastAutoPlayMove = millis();
   aiTargetX = X_MAX / 2; // Start by targeting the center
+  hitsSinceBrickBreak = 0;
+  bricksDestroyedAtLastHit = 0;
   wasLastHitCenter = false;
   Serial.println("Breakout: Started in smart AUTO mode. Listening for controller...");
 
@@ -69,20 +71,26 @@ void BreakoutPlugin::autoPlayMove() {
     }
     predictedBallX += random(-AI_NERF_FACTOR, AI_NERF_FACTOR + 1);
 
-    // --- AI STRATEGY V5: USING MEMORY TO BREAK LOOPS ---
-    if (wasLastHitCenter) {
-        // The last hit was boring. Force an angled shot to break the loop.
-        // Deliberately aim to hit the ball with one of the paddle's outer edges.
-        if (random(2) == 0) {
-            // Aim for the paddle's center to be to the RIGHT of the ball
-            aiTargetX = predictedBallX + (PADDLE_WIDTH / 2) - 1;
+    // --- AI STRATEGY V6: STALE RALLY DETECTION ---
+    if (hitsSinceBrickBreak >= STALE_RALLY_THRESHOLD) {
+        // AI concludes its current strategy is failing.
+        Serial.println("AI: Stale rally detected! Overriding strategy.");
+        // Execute a "pattern-break" shot to send the ball to the other side.
+        if (predictedBallX < X_MAX / 2) {
+            // Ball is on the left, force a shot to the right.
+            aiTargetX = predictedBallX + (PADDLE_WIDTH / 2);
         } else {
-            // Aim for the paddle's center to be to the LEFT of the ball
-            aiTargetX = predictedBallX - (PADDLE_WIDTH / 2) + 1;
+            // Ball is on the right, force a shot to the left.
+            aiTargetX = predictedBallX - (PADDLE_WIDTH / 2);
         }
-        // By forcing a non-optimal hit, we guarantee an angle.
+        // After this override, the stale counter will be reset on the next hit.
+    }
+    else if (wasLastHitCenter) {
+        // Last hit was boring. Force an angled shot to break a simple loop.
+        if (random(2) == 0) aiTargetX = predictedBallX + (PADDLE_WIDTH / 2) - 1;
+        else aiTargetX = predictedBallX - (PADDLE_WIDTH / 2) + 1;
     } else {
-        // If the last hit was good, use the normal smart strategy.
+        // If things are going well, use the normal smart strategy.
         int idealTargetX;
         if (predictedBallX < X_MAX / 2) idealTargetX = predictedBallX - (PADDLE_WIDTH / 2);
         else idealTargetX = predictedBallX + (PADDLE_WIDTH / 2);
@@ -164,16 +172,22 @@ void BreakoutPlugin::checkPaddleCollision() {
 
     for (byte i = 0; i < PADDLE_WIDTH; i++) {
         if (paddle[i].x == ball.x) {
-            ballMovement[1] *= -1;
-
-            // --- UPDATE AI MEMORY ---
-            if (i == PADDLE_WIDTH / 2) {
-                wasLastHitCenter = true; // It was a boring center hit
+            // --- UPDATE AI PROGRESS MEMORY ---
+            if (destroyedBricks == bricksDestroyedAtLastHit) {
+                // No new bricks were broken since the last hit.
+                hitsSinceBrickBreak++;
             } else {
-                wasLastHitCenter = false; // It was an interesting angled hit
+                // Progress! Reset the stale counter.
+                hitsSinceBrickBreak = 0;
             }
+            // Remember the score for the next check.
+            bricksDestroyedAtLastHit = destroyedBricks;
 
-            // Angle logic
+            // Update center-hit memory
+            wasLastHitCenter = (i == PADDLE_WIDTH / 2);
+
+            // Bounce logic
+            ballMovement[1] *= -1;
             if (i < PADDLE_WIDTH / 2) ballMovement[0] = -1;
             else if (i > PADDLE_WIDTH / 2) ballMovement[0] = 1;
             else ballMovement[0] = 0;

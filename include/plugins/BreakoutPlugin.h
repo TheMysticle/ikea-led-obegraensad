@@ -24,7 +24,10 @@ private:
 
   // --- AI State & Target ---
   int aiTargetX;
-  bool wasLastHitCenter; // NEW: The AI's "memory"
+  bool wasLastHitCenter;
+  // NEW: State for detecting stale rallies
+  uint8_t hitsSinceBrickBreak;
+  uint8_t bricksDestroyedAtLastHit;
 
   // --- Game Data ---
   struct Coords { unsigned char x; unsigned char y; };
@@ -42,6 +45,8 @@ private:
   static const unsigned int AUTO_PLAY_DELAY = 120;
   static const uint8_t AI_NERF_FACTOR = 1;
   static const uint8_t AI_TARGET_TOLERANCE = 1;
+  // NEW: If AI has this many unproductive hits, it changes strategy.
+  static const uint8_t STALE_RALLY_THRESHOLD = 4; // <-- NEW
 
   // --- Network Control ---
   WiFiUDP udp;
