@@ -18,7 +18,8 @@ void BreakoutPlugin::initBricks()
   {
     this->bricks[i].x = i % this->X_MAX;
     this->bricks[i].y = i / this->X_MAX;
-    Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_ON, 50);
+    // CHANGE: Removed custom brightness of 50. Let it default to 255.
+    Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_ON); 
 
     delay(25);
   }
@@ -31,12 +32,14 @@ void BreakoutPlugin::newLevel()
   {
     this->paddle[i].x = (this->X_MAX / 2) - (this->PADDLE_WIDTH / 2) + i;
     this->paddle[i].y = this->Y_MAX - 1;
-    Screen.setPixelAtIndex(this->paddle[i].y * this->X_MAX + this->paddle[i].x, this->LED_TYPE_ON, 50);
+    // CHANGE: Removed custom brightness of 50.
+    Screen.setPixelAtIndex(this->paddle[i].y * this->X_MAX + this->paddle[i].x, this->LED_TYPE_ON);
   }
   this->ball.x = this->paddle[1].x;
   this->ball.y = this->paddle[1].y - 1;
 
-  Screen.setPixelAtIndex(ball.y * this->X_MAX + ball.x, this->LED_TYPE_ON, 128);
+  // CHANGE: Removed custom brightness of 128.
+  Screen.setPixelAtIndex(ball.y * this->X_MAX + ball.x, this->LED_TYPE_ON);
   this->ballMovement[0] = 1;
   this->ballMovement[1] = -1;
   this->lastBallUpdate = 0;
@@ -52,7 +55,8 @@ void BreakoutPlugin::updateBall()
     return;
   }
   this->lastBallUpdate = millis();
-  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_OFF, 100);
+  // Erase the ball from its current position
+  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_OFF);
 
   if (this->ballMovement[1] == 1)
   {
@@ -65,15 +69,21 @@ void BreakoutPlugin::updateBall()
     this->checkPaddleCollision();
   }
 
-  // collision detection with bricks
+  // --- START OF FIX ---
+  // Proactive collision detection with bricks
   for (byte i = 0; i < this->BRICK_AMOUNT; i++)
   {
-    if (this->bricks[i].x == this->ball.x && this->bricks[i].y == this->ball.y)
+    // Check if the NEXT position of the ball will hit a valid brick
+    if (this->bricks[i].x == (this->ball.x + this->ballMovement[0]) && 
+        this->bricks[i].y == (this->ball.y + this->ballMovement[1]))
     {
-      this->hitBrick(i);
-      break;
+      this->hitBrick(i); // Destroy the brick
+      this->ballMovement[1] *= -1; // Reverse ball's vertical direction
+      break; // Only handle one brick collision per frame
     }
   }
+  // --- END OF FIX ---
+
   if (this->destroyedBricks >= this->BRICK_AMOUNT)
   {
     this->gameState = this->GAME_STATE_LEVEL;
@@ -90,24 +100,29 @@ void BreakoutPlugin::updateBall()
     this->ballMovement[1] *= -1;
   }
 
+  // Now, update the ball's position using the (potentially updated) movement vector
   this->ball.x += this->ballMovement[0];
   this->ball.y += this->ballMovement[1];
 
-  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_ON, 100);
+  // And draw the ball at its new final position
+  Screen.setPixelAtIndex(this->ball.y * this->X_MAX + this->ball.x, this->LED_TYPE_ON);
 }
 
 void BreakoutPlugin::hitBrick(byte i)
 {
-  this->bricks[i].x = -1;
-  this->bricks[i].y = -1;
-  // ballMovement[1] *= -1;
+  // First, turn off the pixel at the brick's CURRENT location.
+  Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_OFF);
+
+  // Now, mark the brick as destroyed. Using a value clearly off-screen.
+  this->bricks[i].x = 255; 
+  this->bricks[i].y = 255;
+  
   this->score++;
   this->destroyedBricks++;
   if (this->ballDelay > this->BALL_DELAY_MIN)
   {
     this->ballDelay -= this->BALL_DELAY_STEP;
   }
-  Screen.setPixelAtIndex(this->bricks[i].y * this->X_MAX + this->bricks[i].x, this->LED_TYPE_OFF);
 }
 
 void BreakoutPlugin::checkPaddleCollision()
