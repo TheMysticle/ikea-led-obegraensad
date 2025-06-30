@@ -33,6 +33,7 @@
 #include "plugins/DDPPlugin.h"
 #include "plugins/TixyPlugin.h"
 #include "plugins/TessiePlugin.h"
+#include "plugins/TetrisPlugin.h"
 
 #ifdef ENABLE_SERVER
 #include "plugins/AnimationPlugin.h"
@@ -289,6 +290,7 @@ void baseSetup()
   pluginManager.addPlugin(new AnimationPlugin());
   pluginManager.addPlugin(new DDPPlugin());
   pluginManager.addPlugin(new TessiePlugin());
+  pluginManager.addPlugin(new TetrisPlugin());
 #endif
 
   pluginManager.init();
