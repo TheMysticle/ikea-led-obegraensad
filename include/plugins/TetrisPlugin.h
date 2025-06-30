@@ -19,7 +19,7 @@ private:
     // --- AI Target ---
     int aiTargetX;
     int aiTargetRotation;
-    bool aiMoveCalculated; // Flag to check if we've found a move for the current piece
+    bool aiMoveCalculated;
 
     // --- Game Data ---
     uint8_t playfield[FIELD_WIDTH * FIELD_HEIGHT];
@@ -29,11 +29,14 @@ private:
     int currentY;
     int score;
 
-    // --- Non-Blocking Timers ---
+    // --- Non-Blocking Timers & AI Tuning ---
     unsigned long lastGameTick;
     unsigned int gameTickDelay;
     unsigned long lastAutoPlayMove;
-    static const unsigned int AUTO_PLAY_DELAY = 100; // AI can move faster now
+    static const unsigned int AUTO_PLAY_DELAY = 100;
+    // NEW: Adds randomness to the AI's scoring, making it less perfect.
+    // Higher values = more mistakes. A good starting value is 20-30.
+    static const uint8_t AI_INACCURACY_WEIGHT = 25; // <-- THE NEW NERF
 
     // --- Network Control ---
     WiFiUDP udp;
@@ -46,7 +49,7 @@ private:
     void newGame();
     void newPiece();
     void gameOver();
-    void findBestMove(); // The new AI brain
+    void findBestMove();
 
     // --- Piece & Board Functions ---
     int getPieceData(int piece, int rotation, int x, int y);

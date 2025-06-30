@@ -51,13 +51,11 @@ void TetrisPlugin::findBestMove() {
             // Check if this move is possible from the top
             if (doesPieceFit(currentPiece, r, x, 0)) {
                 
-                // Find where it would land by simulating a drop
                 int y = 0;
                 while (doesPieceFit(currentPiece, r, x, y + 1)) {
                     y++;
                 }
 
-                // Temporarily place the piece on a copy of the board
                 uint8_t tempPlayfield[FIELD_WIDTH * FIELD_HEIGHT];
                 memcpy(tempPlayfield, playfield, sizeof(playfield));
                 for (int px = 0; px < 4; px++) {
@@ -68,40 +66,30 @@ void TetrisPlugin::findBestMove() {
                     }
                 }
 
-                // --- Calculate Heuristics for this move ---
                 int landingHeight = (FIELD_HEIGHT - y);
                 int completedLines = 0;
                 int holes = 0;
                 int bumpiness = 0;
                 
-                // Calculate line completions
                 for (int ly = 0; ly < FIELD_HEIGHT; ly++) {
                     bool lineComplete = true;
-                    for (int lx = 0; lx < FIELD_WIDTH; lx++) {
-                        if (tempPlayfield[ly * FIELD_WIDTH + lx] == 0) {
-                            lineComplete = false;
-                            break;
-                        }
-                    }
+                    for (int lx = 0; lx < FIELD_WIDTH; lx++) if (tempPlayfield[ly * FIELD_WIDTH + lx] == 0) { lineComplete = false; break; }
                     if (lineComplete) completedLines++;
                 }
 
-                // Calculate holes and bumpiness
                 int columnHeights[FIELD_WIDTH] = {0};
                 for (int cx = 0; cx < FIELD_WIDTH; cx++) {
                     int cy = 0;
                     while (cy < FIELD_HEIGHT && tempPlayfield[cy * FIELD_WIDTH + cx] == 0) cy++;
                     columnHeights[cx] = FIELD_HEIGHT - cy;
-                    for (; cy < FIELD_HEIGHT; cy++) {
-                        if (tempPlayfield[cy * FIELD_WIDTH + cx] == 0) holes++;
-                    }
+                    for (; cy < FIELD_HEIGHT; cy++) if (tempPlayfield[cy * FIELD_WIDTH + cx] == 0) holes++;
                 }
-                for (int i = 0; i < FIELD_WIDTH - 1; i++) {
-                    bumpiness += abs(columnHeights[i] - columnHeights[i+1]);
-                }
+                for (int i = 0; i < FIELD_WIDTH - 1; i++) bumpiness += abs(columnHeights[i] - columnHeights[i+1]);
 
-                // --- Final Score Calculation (Coefficients are key!) ---
-                long currentScore = (10 * landingHeight) + (25 * holes) + (5 * bumpiness) - (50 * completedLines * completedLines);
+                // --- THIS IS THE NERF ---
+                // Add a random "noise" value to the score. This makes the AI's choice less deterministic.
+                long randomNoise = random(0, AI_INACCURACY_WEIGHT);
+                long currentScore = (10 * landingHeight) + (25 * holes) + (5 * bumpiness) - (50 * completedLines * completedLines) + randomNoise;
 
                 if (currentScore < bestScore) {
                     bestScore = currentScore;
