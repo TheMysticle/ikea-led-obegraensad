@@ -35,6 +35,7 @@
 #include "plugins/TessiePlugin.h"
 #include "plugins/TetrisPlugin.h"
 #include "plugins/FroggerPlugin.h"
+#include "plugins/MazePlugin.h"
 
 #ifdef ENABLE_SERVER
 #include "plugins/AnimationPlugin.h"
@@ -293,6 +294,7 @@ void baseSetup()
   pluginManager.addPlugin(new TessiePlugin());
   pluginManager.addPlugin(new TetrisPlugin());
   pluginManager.addPlugin(new FroggerPlugin());
+  pluginManager.addPlugin(new MazePlugin());
 #endif
 
   pluginManager.init();
