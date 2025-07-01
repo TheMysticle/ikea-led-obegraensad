@@ -1,342 +1,239 @@
 #include "plugins/SnakePlugin.h"
 
-void SnakePlugin::initGame()
-{
-  Screen.clear();
-
-  this->position = {240, 241, 242};
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_ON);
-  }
-
-  newDot();
+void SnakePlugin::setup() {
+    gameState = STATE_GAME_OVER;
 }
 
-void SnakePlugin::newDot()
-{
-  this->dot = random(0, 255);
-  for (const uint &n : this->position)
-  {
-    if (n == this->dot)
-    {
-      newDot();
-      return;
-    }
-  }
-
-  Screen.setPixelAtIndex(this->dot, SnakePlugin::LED_TYPE_ON, 40);
-
-  this->gameState = SnakePlugin::GAME_STATE_RUNNING;
+const char* SnakePlugin::getName() const {
+    return "Snake";
 }
 
-void SnakePlugin::findDirection()
-{
-  // possible directions
-  uint up = 1;
-  uint down = 1;
-  uint left = 1;
-  uint right = 1;
+void SnakePlugin::newGame() {
+    Screen.clear();
+    udp.begin(UDP_PORT);
+    controlMode = CONTROL_AUTO;
+    lastUdpPacketTime = 0;
+    lastGameTick = millis();
+    Serial.println("Snake: Started in AUTO mode. Listening for controller...");
 
-  int snakesize = this->position.size();
-  uint snakehead = this->position[snakesize - 1];
+    snakeBody.clear();
+    snakeBody.push_back(SCREEN_WIDTH * (SCREEN_HEIGHT / 2) + 3);
+    snakeBody.push_back(SCREEN_WIDTH * (SCREEN_HEIGHT / 2) + 2);
+    snakeBody.push_back(SCREEN_WIDTH * (SCREEN_HEIGHT / 2) + 1);
 
-  uint up_pos = snakehead - 16;
-  uint down_pos = snakehead + 16;
-  uint left_pos = snakehead - 1;
-  uint right_pos = snakehead + 1;
+    currentDirection = 1; // Start moving right
+    aiPath.clear();
+    aiPathIndex = 0;
 
-  // remove possible directions by borders
-  if (snakehead <= 15)
-  {
-    up = 0;
-  }
-  if (snakehead >= 240)
-  {
-    down = 0;
-  }
-  if (snakehead % 16 == 0)
-  {
-    left = 0;
-  }
-  if (snakehead % 16 == 15)
-  {
-    right = 0;
-  }
-
-  // remove possible directions by snake position to avoid snake hitting
-  for (const uint &n : this->position)
-  {
-    if (up && n == up_pos)
-    {
-      up = 0;
-    }
-    if (down && n == down_pos)
-    {
-      down = 0;
-    }
-    if (left && n == left_pos)
-    {
-      left = 0;
-    }
-    if (right && n == right_pos)
-    {
-      right = 0;
-    }
-  }
-
-  // so now we can move the snake random... but what about intelligent movement...?
-  uint bestway_up = up;
-  uint bestway_down = down;
-  uint bestway_left = left;
-  uint bestway_right = right;
-
-  // left, right or stay in col?
-  if (snakehead % 16 == this->dot % 16)
-  {
-    // stay in col
-    bestway_left = 0;
-    bestway_right = 0;
-  }
-  else if (snakehead % 16 > this->dot % 16)
-  {
-    // go left
-    if (bestway_left)
-    {
-      bestway_left = snakehead % 16 - this->dot % 16;
-    }
-    bestway_right = 0;
-  }
-  else
-  {
-    // go right
-    if (bestway_right)
-    {
-      bestway_right = this->dot % 16 - snakehead % 16;
-    }
-    bestway_left = 0;
-  }
-
-  // up, down or stay in row?
-  if (floor(snakehead / 16) == floor(this->dot / 16))
-  {
-    // stay in row
-    bestway_up = 0;
-    bestway_down = 0;
-  }
-  else if (floor(snakehead / 16) > floor(this->dot / 16))
-  {
-    // go up
-    if (bestway_up)
-    {
-      bestway_up = floor(snakehead / 16) - floor(this->dot / 16);
-    }
-    bestway_down = 0;
-  }
-  else
-  {
-    // go down
-    if (bestway_down)
-    {
-      bestway_down = floor(this->dot / 16) - floor(snakehead / 16);
-    }
-    bestway_up = 0;
-  }
-
-  // make the next step like the last if possible
-  if (this->lastDirection == 1 && bestway_up)
-  {
-    moveSnake(snakehead - 16);
-    return;
-  }
-  else if (this->lastDirection == 2 && bestway_right)
-  {
-    moveSnake(snakehead + 1);
-    return;
-  }
-  else if (this->lastDirection == 3 && bestway_down)
-  {
-    moveSnake(snakehead + 16);
-    return;
-  }
-  else if (this->lastDirection == 4 && bestway_left)
-  {
-    moveSnake(snakehead - 1);
-    return;
-  }
-
-  // ok, redoing last step was not possible so ...
-  // go to the best possible direction by distance
-  if (bestway_up == 0 && bestway_right == 0 && bestway_down == 0 && bestway_left == 0)
-  {
-    // there are no good (bestway) directions, what about other possible directions?!
-    if (up)
-    {
-      moveSnake(snakehead - 16);
-      this->lastDirection = 1;
-    }
-    else if (down)
-    {
-      moveSnake(snakehead + 16);
-      this->lastDirection = 3;
-    }
-    else if (left)
-    {
-      moveSnake(snakehead - 1);
-      this->lastDirection = 4;
-    }
-    else if (right)
-    {
-      moveSnake(snakehead + 1);
-      this->lastDirection = 2;
-    }
-    else
-    {
-      // killed yourself - no possible directions
-      end();
-    }
-  }
-  else if (bestway_up > bestway_right && bestway_up > bestway_down && bestway_up > bestway_left)
-  {
-    // go up!
-    moveSnake(snakehead - 16);
-    this->lastDirection = 1;
-  }
-  else if (bestway_right > bestway_down && bestway_right > bestway_left && bestway_right > bestway_up)
-  {
-    // go right!
-    moveSnake(snakehead + 1);
-    this->lastDirection = 2;
-  }
-  else if (bestway_down > bestway_left && bestway_down > bestway_up && bestway_down > bestway_right)
-  {
-    // go down!
-    moveSnake(snakehead + 16);
-    this->lastDirection = 3;
-  }
-  else if (bestway_left > bestway_up && bestway_left > bestway_right && bestway_left > bestway_down)
-  {
-    // go left!
-    moveSnake(snakehead - 1);
-    this->lastDirection = 4;
-  }
-  else
-  {
-
-    // hmm, same distance - prio on up -> down -> left -> right
-    if (bestway_up)
-    {
-      moveSnake(snakehead - 16);
-      this->lastDirection = 1;
-    }
-    else if (bestway_down)
-    {
-      moveSnake(snakehead + 16);
-      this->lastDirection = 3;
-    }
-    else if (bestway_left)
-    {
-      moveSnake(snakehead - 1);
-      this->lastDirection = 4;
-    }
-    else
-    {
-      moveSnake(snakehead + 1);
-      this->lastDirection = 2;
-    }
-  }
+    spawnDot();
+    
+    for (int segment : snakeBody) Screen.setPixelAtIndex(segment, LED_TYPE_ON);
+    
+    gameState = STATE_PLAYING;
 }
 
-void SnakePlugin::moveSnake(uint newpos)
-{
-  if (newpos == this->dot)
-  {
-    Screen.setPixelAtIndex(this->dot, SnakePlugin::LED_TYPE_ON);
-    this->position.push_back(newpos);
-    newDot();
-  }
-  else
-  {
-
-    Screen.setPixelAtIndex(newpos, SnakePlugin::LED_TYPE_ON);
-    this->position.push_back(newpos); // adding element (head) to snake
-
-    Screen.setPixelAtIndex(this->position[0], SnakePlugin::LED_TYPE_OFF);
-    this->position.erase(this->position.begin()); // removing first element (end) of snake
-  }
+void SnakePlugin::spawnDot() {
+    bool dotIsValid;
+    do {
+        dotIsValid = true;
+        dotPosition = random(0, MAX_PIXELS);
+        for (int segment : snakeBody) {
+            if (dotPosition == segment) {
+                dotIsValid = false;
+                break;
+            }
+        }
+    } while (!dotIsValid);
+    Screen.setPixelAtIndex(dotPosition, LED_TYPE_ON, 100);
 }
 
-void SnakePlugin::end()
-{
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_OFF);
-  }
-  delay(200);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_ON);
-  }
-  delay(200);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_OFF);
-  }
-  delay(200);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_ON);
-  }
-  delay(200);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_OFF);
-  }
-  delay(200);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_ON);
-  }
-  delay(500);
-
-  for (const int &n : this->position)
-  {
-    Screen.setPixelAtIndex(n, SnakePlugin::LED_TYPE_OFF);
-    delay(200);
-  }
-
-  delay(200);
-  Screen.setPixelAtIndex(this->dot, SnakePlugin::LED_TYPE_OFF);
-  delay(500);
-
-  this->gameState = SnakePlugin::GAME_STATE_END;
+void SnakePlugin::gameOver() {
+    udp.stop();
+    gameState = STATE_GAME_OVER;
+    // Simple flashing game over animation
+    for (int i = 0; i < 3; i++) {
+        for (int segment : snakeBody) Screen.setPixelAtIndex(segment, LED_TYPE_OFF);
+        delay(250);
+        for (int segment : snakeBody) Screen.setPixelAtIndex(segment, LED_TYPE_ON);
+        delay(250);
+    }
 }
 
-void SnakePlugin::setup()
-{
-  this->gameState = SnakePlugin::GAME_STATE_END;
+bool SnakePlugin::isCollision(int headPos) {
+    // We no longer check for wall collisions here.
+    // The moveSnake function will handle wrapping.
+
+    // Check for collision with the snake's own body.
+    for (size_t i = 0; i < snakeBody.size() - 1; i++) {
+        if (headPos == snakeBody[i]) {
+            return true; // Body collision
+        }
+    }
+    return false; // No collision
 }
 
-void SnakePlugin::loop()
-{
-  switch (this->gameState)
-  {
-  case SnakePlugin::GAME_STATE_RUNNING:
-    this->findDirection();
-    delay(100);
-    break;
-  case SnakePlugin::GAME_STATE_END:
-    this->initGame();
-    break;
-  }
+void SnakePlugin::moveSnake() {
+    int head = snakeBody.front();
+    int newHead = head;
+
+    // Calculate the next theoretical position
+    if (currentDirection == 0) newHead -= SCREEN_WIDTH;      // Up
+    else if (currentDirection == 1) newHead += 1;          // Right
+    else if (currentDirection == 2) newHead += SCREEN_WIDTH; // Down
+    else if (currentDirection == 3) newHead -= 1;          // Left
+
+    // --- SCREEN WRAP LOGIC ---
+    int headX = head % SCREEN_WIDTH;
+
+    if (currentDirection == 1 && headX == SCREEN_WIDTH - 1) { // Moving right off the right edge
+        newHead = head - (SCREEN_WIDTH - 1); // Wrap to the left edge on the same row
+    } else if (currentDirection == 3 && headX == 0) { // Moving left off the left edge
+        newHead = head + (SCREEN_WIDTH - 1); // Wrap to the right edge on the same row
+    } else if (currentDirection == 0 && newHead < 0) { // Moving up off the top edge
+        newHead = head + (SCREEN_WIDTH * (SCREEN_HEIGHT - 1)); // Wrap to the bottom row in the same column
+    } else if (currentDirection == 2 && newHead >= MAX_PIXELS) { // Moving down off the bottom edge
+        newHead = head - (SCREEN_WIDTH * (SCREEN_HEIGHT - 1)); // Wrap to the top row in the same column
+    }
+
+    // Now, check for collision (only with the body, since walls are handled)
+    if (isCollision(newHead)) {
+        gameOver();
+        return;
+    }
+
+    // Insert the new head into the snake's body
+    snakeBody.insert(snakeBody.begin(), newHead);
+    Screen.setPixelAtIndex(newHead, LED_TYPE_ON);
+
+    // Handle dot collection or tail movement
+    if (newHead == dotPosition) {
+        spawnDot();
+        aiPath.clear();
+    } else {
+        Screen.setPixelAtIndex(snakeBody.back(), LED_TYPE_OFF);
+        snakeBody.pop_back();
+    }
 }
 
-const char *SnakePlugin::getName() const
-{
-  return "Snake";
+bool SnakePlugin::findPathToDot() {
+    std::vector<int> q;
+    q.push_back(snakeBody.front());
+    std::vector<int> parent(MAX_PIXELS, -1);
+    bool visited[MAX_PIXELS] = {false};
+    // Mark the entire snake body as "visited" so the pathfinder avoids it.
+    for(int seg : snakeBody) {
+        if (seg >= 0 && seg < MAX_PIXELS) visited[seg] = true;
+    }
+    
+    int head = 0;
+    bool pathFound = false;
+    
+    while(head < q.size()){
+        int current = q[head++];
+        int currentX = current % SCREEN_WIDTH;
+        
+        if(current == dotPosition){ 
+            pathFound = true; 
+            break; 
+        }
+
+        // Define potential moves (Up, Right, Down, Left)
+        int moves[] = {
+            current - SCREEN_WIDTH, // Up
+            current + 1,            // Right
+            current + SCREEN_WIDTH, // Down
+            current - 1             // Left
+        };
+
+        // --- APPLY WRAPPING TO POTENTIAL MOVES ---
+        if (currentX == SCREEN_WIDTH - 1) moves[1] = current - (SCREEN_WIDTH - 1); // Wrap right
+        if (currentX == 0) moves[3] = current + (SCREEN_WIDTH - 1); // Wrap left
+        if (current < SCREEN_WIDTH) moves[0] = current + (SCREEN_WIDTH * (SCREEN_HEIGHT - 1)); // Wrap up
+        if (current >= MAX_PIXELS - SCREEN_WIDTH) moves[2] = current - (SCREEN_WIDTH * (SCREEN_HEIGHT - 1)); // Wrap down
+
+        for(int next : moves){
+            if(next >= 0 && next < MAX_PIXELS && !visited[next]){
+                visited[next] = true; 
+                parent[next] = current; 
+                q.push_back(next);
+            }
+        }
+    }
+
+    if(pathFound){
+        aiPath.clear();
+        int p_current = dotPosition;
+        while(p_current != -1 && p_current != snakeBody.front()){
+            aiPath.insert(aiPath.begin(), p_current);
+            p_current = parent[p_current];
+        }
+        aiPathIndex = 0;
+        return true;
+    }
+    return false; // No path found
+}
+
+void SnakePlugin::autoPlayMove() {
+    // Imperfection: Occasionally make a random (but safe) move instead of following the path
+    if (random(100) < AI_RANDOM_MOVE_CHANCE) {
+        int directions[] = {0, 1, 2, 3};
+        for(int i=0; i<4; i++) std::swap(directions[i], directions[random(0,4)]);
+        for(int dir : directions) {
+            if (dir == (currentDirection + 2) % 4) continue; // Don't move backwards
+            int nextHead = snakeBody.front();
+            if (dir == 0) nextHead -= SCREEN_WIDTH; else if (dir == 1) nextHead += 1;
+            else if (dir == 2) nextHead += SCREEN_WIDTH; else if (dir == 3) nextHead -= 1;
+            if (!isCollision(nextHead)) { currentDirection = dir; return; }
+        }
+    }
+
+    // Follow the pre-calculated path
+    if (aiPath.empty() || aiPathIndex >= aiPath.size()) {
+        if (!findPathToDot()) { /* No path found, just keep moving straight until you die */ return; }
+    }
+
+    if (aiPathIndex < aiPath.size()) {
+        int nextMove = aiPath[aiPathIndex];
+        int head = snakeBody.front();
+        if (nextMove == head - SCREEN_WIDTH) currentDirection = 0;
+        else if (nextMove == head + 1) currentDirection = 1;
+        else if (nextMove == head + SCREEN_WIDTH) currentDirection = 2;
+        else if (nextMove == head - 1) currentDirection = 3;
+        aiPathIndex++;
+    }
+}
+
+void SnakePlugin::checkForUdp() {
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+        lastUdpPacketTime = millis();
+        if (controlMode == CONTROL_AUTO) { controlMode = CONTROL_MANUAL; Serial.println("Controller detected! Switching Snake to MANUAL mode."); }
+        int len = udp.read(packetBuffer, 255);
+        if (len > 0) packetBuffer[len] = 0;
+
+        if (strcmp(packetBuffer, "UP") == 0 && currentDirection != 2) currentDirection = 0;
+        else if (strcmp(packetBuffer, "RIGHT") == 0 && currentDirection != 3) currentDirection = 1;
+        else if (strcmp(packetBuffer, "DOWN") == 0 && currentDirection != 0) currentDirection = 2;
+        else if (strcmp(packetBuffer, "LEFT") == 0 && currentDirection != 1) currentDirection = 3;
+    }
+    if (controlMode == CONTROL_MANUAL && millis() - lastUdpPacketTime > UDP_TIMEOUT && lastUdpPacketTime != 0) {
+        controlMode = CONTROL_AUTO; lastUdpPacketTime = 0; Serial.println("Controller timed out. Switching Snake back to AUTO mode.");
+    }
+}
+
+void SnakePlugin::loop() {
+    if (gameState == STATE_GAME_OVER) {
+        newGame();
+        return;
+    }
+
+    checkForUdp();
+    
+    if (millis() - lastGameTick > GAME_SPEED_MS) {
+        lastGameTick = millis();
+        if (controlMode == CONTROL_AUTO) {
+            autoPlayMove();
+        }
+        moveSnake();
+    }
 }
