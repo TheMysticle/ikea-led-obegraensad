@@ -174,23 +174,27 @@ void BreakoutPlugin::checkPaddleCollision() {
         if (paddle[i].x == ball.x) {
             // --- UPDATE AI PROGRESS MEMORY ---
             if (destroyedBricks == bricksDestroyedAtLastHit) {
-                // No new bricks were broken since the last hit.
                 hitsSinceBrickBreak++;
             } else {
-                // Progress! Reset the stale counter.
                 hitsSinceBrickBreak = 0;
             }
-            // Remember the score for the next check.
             bricksDestroyedAtLastHit = destroyedBricks;
-
-            // Update center-hit memory
             wasLastHitCenter = (i == PADDLE_WIDTH / 2);
 
             // Bounce logic
             ballMovement[1] *= -1;
-            if (i < PADDLE_WIDTH / 2) ballMovement[0] = -1;
-            else if (i > PADDLE_WIDTH / 2) ballMovement[0] = 1;
-            else ballMovement[0] = 0;
+            if (i < PADDLE_WIDTH / 2) {
+                ballMovement[0] = -1;
+            } else if (i > PADDLE_WIDTH / 2) {
+                ballMovement[0] = 1;
+            } else {
+                // Center hit: randomly choose left or right with 50% chance
+                if (random(2) == 0) {
+                    ballMovement[0] = -1; // Diagonal left
+                } else {
+                    ballMovement[0] = 1;  // Diagonal right
+                }
+            }
             return;
         }
     }
