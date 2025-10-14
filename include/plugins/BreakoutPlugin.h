@@ -11,7 +11,7 @@ private:
   static const uint8_t Y_MAX = 16;
   static const uint8_t BRICK_AMOUNT = X_MAX * 4;
   static const uint8_t BALL_DELAY_MAX = 200;
-  static const uint8_t BALL_DELAY_MIN = 100;
+  static const uint8_t BALL_DELAY_MIN = 60;
   static const uint8_t BALL_DELAY_STEP = 5;
   static const uint8_t PADDLE_WIDTH = 5;
 
@@ -22,19 +22,20 @@ private:
   enum ControlMode { CONTROL_AUTO, CONTROL_MANUAL };
   ControlMode controlMode;
 
-  // --- AI State & Target ---
+  // --- AI State ---
   int aiTargetX;
-  bool wasLastHitCenter;
-  // NEW: State for detecting stale rallies
+  // REMOVED: aiHasMadeDecision is no longer needed with the new logic.
   uint8_t hitsSinceBrickBreak;
   uint8_t bricksDestroyedAtLastHit;
 
   // --- Game Data ---
-  struct Coords { unsigned char x; unsigned char y; };
-  Coords paddle[PADDLE_WIDTH];
-  Coords bricks[BRICK_AMOUNT];
-  Coords ball;
+  struct Brick { unsigned char x; unsigned char y; };
+  Brick paddle[PADDLE_WIDTH];
+  Brick bricks[BRICK_AMOUNT];
+  Brick ball;
   int ballMovement[2];
+  int lastPaddleDirection;
+  
   uint8_t ballDelay;
   unsigned char level;
   unsigned char destroyedBricks;
@@ -42,13 +43,11 @@ private:
   // --- Non-Blocking Timers & AI Tuning ---
   unsigned long lastGameTick;
   unsigned long lastAutoPlayMove;
-  static const unsigned int AUTO_PLAY_DELAY = 120;
-  static const uint8_t AI_NERF_FACTOR = 1;
-  static const uint8_t AI_TARGET_TOLERANCE = 1;
-  // NEW: If AI has this many unproductive hits, it changes strategy.
-  static const uint8_t STALE_RALLY_THRESHOLD = 4; // <-- NEW
+  static const unsigned int AUTO_PLAY_DELAY = 100;
+  static const uint8_t STALE_RALLY_THRESHOLD = 5;
 
   // --- Network Control ---
+  // ... (rest of the file is unchanged) ...
   WiFiUDP udp;
   static const unsigned int UDP_PORT = 12345;
   static const unsigned long UDP_TIMEOUT = 5000;
