@@ -326,6 +326,24 @@ void screenDrawingTask(void *parameter)
   }
 }
 
+#include <WiFiUdp.h>
+WiFiUDP remoteUdp;
+char remotePacketBuffer[64];
+
+void checkForRemotePluginSwitch() {
+    int packetSize = remoteUdp.parsePacket();
+    if (packetSize) {
+        int len = remoteUdp.read(remotePacketBuffer, sizeof(remotePacketBuffer) - 1);
+        if (len > 0) remotePacketBuffer[len] = 0;
+        if (strncmp(remotePacketBuffer, "PLUGIN:", 7) == 0) {
+            int pluginId = atoi(remotePacketBuffer + 7);
+            pluginManager.setActivePluginById(pluginId);
+            Serial.print("Remote plugin switch to ID: ");
+            Serial.println(pluginId);
+        }
+    }
+}
+
 void setup()
 {
   baseSetup();
@@ -337,6 +355,7 @@ void setup()
       1,
       &screenDrawingTaskHandle,
       0);
+      remoteUdp.begin(4211); // Pick a port for plugin switching
 }
 #endif
 #ifdef ESP8266
@@ -393,5 +412,6 @@ void loop()
   espalexa.loop(); // --- ADDITION FOR ESPALEXA --- Run Espalexa's loop function ---
   ElegantOTA.loop();
 #endif
+  checkForRemotePluginSwitch();
   delay(10);
 }
