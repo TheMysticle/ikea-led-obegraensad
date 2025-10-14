@@ -60,109 +60,196 @@ void BreakoutPlugin::gameOver() {
 }
 
 void BreakoutPlugin::autoPlayMove() {
-  if (ballMovement[1] > 0) {
     int predictedBallX = ball.x;
     int simY = ball.y;
     int simMoveX = ballMovement[0];
-    while (simY < paddle[0].y - 1) {
-      predictedBallX += simMoveX;
-      simY++;
-      if (predictedBallX <= 0 || predictedBallX >= X_MAX - 1) simMoveX *= -1;
-    }
-    predictedBallX += random(-AI_NERF_FACTOR, AI_NERF_FACTOR + 1);
+    int simMoveY = ballMovement[1];
 
-    // --- AI STRATEGY V6: STALE RALLY DETECTION ---
-    if (hitsSinceBrickBreak >= STALE_RALLY_THRESHOLD) {
-        // AI concludes its current strategy is failing.
-        Serial.println("AI: Stale rally detected! Overriding strategy.");
-        // Execute a "pattern-break" shot to send the ball to the other side.
-        if (predictedBallX < X_MAX / 2) {
-            // Ball is on the left, force a shot to the right.
-            aiTargetX = predictedBallX + (PADDLE_WIDTH / 2);
-        } else {
-            // Ball is on the right, force a shot to the left.
-            aiTargetX = predictedBallX - (PADDLE_WIDTH / 2);
+    const int paddleRow = paddle[0].y;
+    const int maxSteps = (X_MAX + Y_MAX) * 4;
+    int steps = 0;
+
+    // --- Simulate ball path ---
+    while (simY < paddleRow - 1 && steps++ < maxSteps) {
+        predictedBallX += simMoveX;
+        simY += simMoveY;
+
+        if (predictedBallX < 0) {
+            predictedBallX = 0;
+            simMoveX = abs(simMoveX);
+        } else if (predictedBallX > X_MAX - 1) {
+            predictedBallX = X_MAX - 1;
+            simMoveX = -abs(simMoveX);
         }
-        // After this override, the stale counter will be reset on the next hit.
+
+        if (simY <= 0) {
+            simY = 0;
+            simMoveY = 1;
+        }
+
+        for (byte i = 0; i < BRICK_AMOUNT; i++) {
+            if (bricks[i].x == 255) continue;
+            if (bricks[i].x == predictedBallX && bricks[i].y == simY) {
+                simMoveY = -simMoveY;
+                simY += simMoveY;
+                break;
+            }
+        }
+
+        #if defined(ESP8266) || defined(ESP32)
+        yield();
+        #endif
     }
-    else if (wasLastHitCenter) {
-        // Last hit was boring. Force an angled shot to break a simple loop.
-        if (random(2) == 0) aiTargetX = predictedBallX + (PADDLE_WIDTH / 2) - 1;
-        else aiTargetX = predictedBallX - (PADDLE_WIDTH / 2) + 1;
-    } else {
-        // If things are going well, use the normal smart strategy.
-        int idealTargetX;
-        if (predictedBallX < X_MAX / 2) idealTargetX = predictedBallX - (PADDLE_WIDTH / 2);
-        else idealTargetX = predictedBallX + (PADDLE_WIDTH / 2);
 
-        const int minPaddleCenter = PADDLE_WIDTH / 2;
-        const int maxPaddleCenter = X_MAX - 1 - (PADDLE_WIDTH / 2);
-        int actualTargetX = constrain(idealTargetX, minPaddleCenter, maxPaddleCenter);
+    if (steps >= maxSteps) predictedBallX = X_MAX / 2;
 
-        if (idealTargetX != actualTargetX) {
-            if (actualTargetX == minPaddleCenter) aiTargetX = minPaddleCenter + 1;
-            else aiTargetX = maxPaddleCenter - 1;
-        } else {
-            aiTargetX = actualTargetX;
+    // --- Brick bias ---
+    int targetBrickX = -1;
+    int minBrickY = Y_MAX;
+    for (byte i = 0; i < BRICK_AMOUNT; i++) {
+        if (bricks[i].x == 255) continue;
+        if (bricks[i].y < minBrickY) {
+            minBrickY = bricks[i].y;
+            targetBrickX = bricks[i].x;
         }
     }
-    
-    // Final constraint to ensure the target is always valid
+
+    int idealTargetX = predictedBallX;
+    if (targetBrickX != -1 && abs(targetBrickX - predictedBallX) <= PADDLE_WIDTH / 2) {
+        idealTargetX = targetBrickX;
+    }
+
+    // --- Smart edge handling ---
     const int minPaddleCenter = PADDLE_WIDTH / 2;
     const int maxPaddleCenter = X_MAX - 1 - (PADDLE_WIDTH / 2);
-    aiTargetX = constrain(aiTargetX, minPaddleCenter, maxPaddleCenter);
+    int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
 
-  } else {
-    aiTargetX = X_MAX / 2;
-  }
+    int safeTargetX = idealTargetX;
 
-  int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
-  if (paddleCenter < aiTargetX - AI_TARGET_TOLERANCE) movePaddle(1);
-  else if (paddleCenter > aiTargetX + AI_TARGET_TOLERANCE) movePaddle(-1);
+    // Only commit to corners if the ball will *actually* hit near the wall
+    if (predictedBallX <= minPaddleCenter + 1) {
+        safeTargetX = minPaddleCenter;  // fully left
+    } else if (predictedBallX >= maxPaddleCenter - 1) {
+        safeTargetX = maxPaddleCenter;  // fully right
+    } else {
+        // Otherwise, slightly bias toward center to avoid hanging near corners
+        const int centerBias = (X_MAX / 2 - safeTargetX) / 4; // 25% pull to center
+        safeTargetX += centerBias;
+    }
+
+    safeTargetX = constrain(safeTargetX, minPaddleCenter, maxPaddleCenter);
+
+    // --- Movement logic ---
+    const int MOVE_THRESHOLD = 0;
+    if (paddleCenter < safeTargetX - MOVE_THRESHOLD)
+        movePaddle(1);
+    else if (paddleCenter > safeTargetX + MOVE_THRESHOLD)
+        movePaddle(-1);
 }
 
 void BreakoutPlugin::updateBall() {
-  Screen.setPixel(ball.x, ball.y, 0);
+    // erase current ball
+    Screen.setPixel(ball.x, ball.y, 0);
 
-  // Check for paddle miss (game over)
-  if (ball.y >= Y_MAX - 1) {
-    gameOver();
-    return;
-  }
+    // Compute next position
+    int nextX = ball.x + ballMovement[0];
+    int nextY = ball.y + ballMovement[1];
 
-  // Check for collision with top wall
-  if (ball.y <= 0) ballMovement[1] *= -1;
-
-  // Check for side wall collisions
-  if (ball.x <= 0 || ball.x >= X_MAX - 1) ballMovement[0] *= -1;
-
-  // Check for paddle collision
-  checkPaddleCollision();
-
-  // Check for brick collision
-  int nextBallX = ball.x + ballMovement[0];
-  int nextBallY = ball.y + ballMovement[1];
-  for (byte i = 0; i < BRICK_AMOUNT; i++) {
-    if (bricks[i].x == nextBallX && bricks[i].y == nextBallY) {
-      hitBrick(i);
-      ballMovement[1] *= -1;
-      break;
+    // --- Wall collisions ---
+    if (nextX < 0) {
+        nextX = 0;
+        ballMovement[0] = abs(ballMovement[0]);
+    } else if (nextX > X_MAX - 1) {
+        nextX = X_MAX - 1;
+        ballMovement[0] = -abs(ballMovement[0]);
     }
-  }
+    if (nextY < 0) {
+        nextY = 0;
+        ballMovement[1] = abs(ballMovement[1]);
+    }
 
-  if (destroyedBricks >= BRICK_AMOUNT) {
-    gameState = STATE_LEVEL;
-    return;
-  }
-  
-  ball.x += ballMovement[0];
-  ball.y += ballMovement[1];
-  Screen.setPixel(ball.x, ball.y, 1);
+    // --- Paddle collision ---
+    const int paddleRow = paddle[0].y;
+    bool hitPaddle = false;
+
+    // Check if ball is about to hit the paddle this frame
+    if (ball.y < paddleRow && nextY >= paddleRow) {
+        for (byte i = 0; i < PADDLE_WIDTH; i++) {
+            if (paddle[i].x == nextX) {
+                hitPaddle = true;
+
+                // Clamp ball on top of paddle
+                nextY = paddleRow - 1;
+
+                // Update AI memory
+                if (destroyedBricks == bricksDestroyedAtLastHit) hitsSinceBrickBreak++;
+                else hitsSinceBrickBreak = 0;
+                bricksDestroyedAtLastHit = destroyedBricks;
+                wasLastHitCenter = (i == PADDLE_WIDTH / 2);
+
+                // Bounce logic (vertical invert + horizontal adjustment)
+                ballMovement[1] *= -1;
+                if (i < PADDLE_WIDTH / 2) ballMovement[0] = -1;
+                else if (i > PADDLE_WIDTH / 2) ballMovement[0] = 1;
+                else {
+                    int r = random(100);
+                    if (r < 30) ballMovement[0] = -1;
+                    else if (r < 60) ballMovement[0] = 1;
+                    else ballMovement[0] = 0;
+                }
+
+                // After bounce, next position is computed based on updated movement
+                nextX = ball.x + ballMovement[0];
+                nextY = ball.y + ballMovement[1];
+                nextX = constrain(nextX, 0, X_MAX - 1);
+                break;
+            }
+        }
+    }
+
+    // Ball passed paddle without hitting -> game over
+    if (nextY >= paddleRow && !hitPaddle) {
+        gameOver();
+        return;
+    }
+
+    // --- Brick collision ---
+    for (byte i = 0; i < BRICK_AMOUNT; i++) {
+        if (bricks[i].x == 255) continue;
+
+        // Simple robust collision: if ball moves into or across brick
+        if ((nextX == bricks[i].x && nextY == bricks[i].y) ||
+            (ball.x == bricks[i].x && nextY == bricks[i].y) ||
+            (nextX == bricks[i].x && ball.y == bricks[i].y)) {
+
+            hitBrick(i);
+
+            // Reflect vertically immediately
+            ballMovement[1] *= -1;
+            nextY = ball.y + ballMovement[1];
+            nextX = ball.x + ballMovement[0];
+            nextX = constrain(nextX, 0, X_MAX - 1);
+            break;
+        }
+    }
+
+    // --- Level complete check ---
+    if (destroyedBricks >= BRICK_AMOUNT) {
+        destroyedBricks = BRICK_AMOUNT; // clamp
+        gameState = STATE_LEVEL;
+        return;
+    }
+
+    // --- Apply new position ---
+    ball.x = constrain(nextX, 0, X_MAX - 1);
+    ball.y = constrain(nextY, 0, Y_MAX - 1);
+    Screen.setPixel(ball.x, ball.y, 1);
 }
 
 void BreakoutPlugin::hitBrick(byte i) {
   Screen.setPixel(bricks[i].x, bricks[i].y, 0);
   bricks[i].x = 255; // Move off-screen
+  bricks[i].y = 255; // fully mark destroyed
   destroyedBricks++;
   if (ballDelay > BALL_DELAY_MIN) ballDelay -= BALL_DELAY_STEP;
 }
@@ -188,11 +275,14 @@ void BreakoutPlugin::checkPaddleCollision() {
             } else if (i > PADDLE_WIDTH / 2) {
                 ballMovement[0] = 1;
             } else {
-                // Center hit: randomly choose left or right with 50% chance
-                if (random(2) == 0) {
+                // Center hit: 40% straight up, 30% left, 30% right
+                int r = random(100);
+                if (r < 30) {
                     ballMovement[0] = -1; // Diagonal left
-                } else {
+                } else if (r < 60) {
                     ballMovement[0] = 1;  // Diagonal right
+                } else {
+                    ballMovement[0] = 0;  // Straight up
                 }
             }
             return;
