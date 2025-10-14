@@ -1,8 +1,8 @@
 #include "plugins/BreakoutPlugin.h"
 
-// --- setup, getName, initGame are unchanged ---
 void BreakoutPlugin::setup() { gameState = STATE_GAME_OVER; }
 const char *BreakoutPlugin::getName() const { return "Breakout"; }
+
 void BreakoutPlugin::initGame() {
   Screen.clear();
   ballDelay = BALL_DELAY_MAX;
@@ -18,7 +18,6 @@ void BreakoutPlugin::newLevel() {
   lastGameTick = millis();
   lastAutoPlayMove = millis();
   aiTargetX = X_MAX / 2;
-  // REMOVED: aiHasMadeDecision is no longer used
   hitsSinceBrickBreak = 0;
   bricksDestroyedAtLastHit = 0;
   lastPaddleDirection = 0;
@@ -48,7 +47,6 @@ void BreakoutPlugin::newLevel() {
   level++;
 }
 
-// --- gameOver is unchanged ---
 void BreakoutPlugin::gameOver() {
   udp.stop();
   gameState = STATE_GAME_OVER;
@@ -56,88 +54,70 @@ void BreakoutPlugin::gameOver() {
   delay(2000);
 }
 
+// NEW: Function to display the victory message
+void BreakoutPlugin::levelComplete() {
+  udp.stop();
+  gameState = STATE_VICTORY;
+  Screen.scrollText("YOU WIN", 60);
+  delay(2000);
+}
+
 void BreakoutPlugin::autoPlayMove() {
-  // Only think if the ball is coming down
   if (ballMovement[1] > 0) {
-    // --- STEP 1: PREDICT BALL'S PATH ---
     int predictedBallX = ball.x;
     int simY = ball.y;
     int simMoveX = ballMovement[0];
     while (simY < paddle[0].y - 1) {
       predictedBallX += simMoveX;
       simY++;
-      if (predictedBallX <= 0 || predictedBallX >= X_MAX - 1) {
-        simMoveX *= -1;
-      }
+      if (predictedBallX <= 0 || predictedBallX >= X_MAX - 1) simMoveX *= -1;
     }
 
-    // --- STEP 2: STRATEGIC DECISION ---
     if (hitsSinceBrickBreak >= STALE_RALLY_THRESHOLD) {
-      // PATTERN BREAK: The current aggressive strategy is failing.
-      // NEW TOP PRIORITY: Look for a vertical strike opportunity.
       bool verticalStrikeFound = false;
       for (int i = 0; i < BRICK_AMOUNT; i++) {
-        // Is there a remaining brick in the predicted column?
         if (bricks[i].x != 255 && bricks[i].x == predictedBallX) {
-          Serial.println("AI: Stale rally! Found a vertical strike target!");
-          aiTargetX = predictedBallX; // This is the golden shot. Take it.
+          aiTargetX = predictedBallX;
           verticalStrikeFound = true;
-          break; // Found our target, no need to look further.
+          break;
         }
       }
-
-      // If no vertical target was found, fall back to the old pattern break.
       if (!verticalStrikeFound) {
-        Serial.println("AI: Stale rally! No vertical target. Forcing random break...");
-        if (random(4) == 0) { // 25% chance of a risky cross-court shot
+        if (random(4) == 0) {
           int targetForLeftHit = predictedBallX + (PADDLE_WIDTH / 2);
           int targetForRightHit = predictedBallX - (PADDLE_WIDTH / 2);
           int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
           aiTargetX = (abs(targetForLeftHit - paddleCenter) > abs(targetForRightHit - paddleCenter)) ? targetForLeftHit : targetForRightHit;
-        } else { // 75% chance of a safe (but different) center shot
+        } else {
           aiTargetX = predictedBallX;
         }
       }
-
     } else {
-      // NORMAL AGGRESSIVE PLAY: Choose the most efficient edge-shot.
       int targetForLeftHit = predictedBallX + (PADDLE_WIDTH / 2);
       int targetForRightHit = predictedBallX - (PADDLE_WIDTH / 2);
       int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
       aiTargetX = (abs(targetForLeftHit - paddleCenter) < abs(targetForRightHit - paddleCenter)) ? targetForLeftHit : targetForRightHit;
     }
   } else {
-    // Defensively center while ball is moving away
     aiTargetX = X_MAX / 2;
   }
 
-  // --- STEP 3: EXECUTE THE MOVE ---
-  // The continuous re-evaluation prevents the AI from making suicidal moves.
   const int minPaddleCenter = PADDLE_WIDTH / 2;
   const int maxPaddleCenter = X_MAX - 1 - (PADDLE_WIDTH / 2);
   aiTargetX = constrain(aiTargetX, minPaddleCenter, maxPaddleCenter);
 
   int paddleCenter = paddle[PADDLE_WIDTH / 2].x;
-  if (paddleCenter < aiTargetX) {
-    movePaddle(1);
-  } else if (paddleCenter > aiTargetX) {
-    movePaddle(-1);
-  }
+  if (paddleCenter < aiTargetX) movePaddle(1);
+  else if (paddleCenter > aiTargetX) movePaddle(-1);
 }
 
-// --- updateBall and hitBrick are unchanged ---
 void BreakoutPlugin::updateBall() {
   Screen.setPixel(ball.x, ball.y, 0);
-
-  if (ball.y >= Y_MAX - 1) {
-    gameOver();
-    return;
-  }
+  if (ball.y >= Y_MAX - 1) { gameOver(); return; }
 
   bool brickWasHit = false;
   int nextBallX = ball.x + ballMovement[0];
   int nextBallY = ball.y + ballMovement[1];
-
   for (byte i = 0; i < BRICK_AMOUNT; i++) {
     if (bricks[i].x != 255 && bricks[i].x == nextBallX && bricks[i].y == nextBallY) {
       hitBrick(i);
@@ -146,16 +126,15 @@ void BreakoutPlugin::updateBall() {
       break;
     }
   }
-
   if (!brickWasHit) {
     if (nextBallY < 0) ballMovement[1] *= -1;
     if (nextBallX < 0 || nextBallX >= X_MAX) ballMovement[0] *= -1;
   }
-
   checkPaddleCollision();
 
+  // CHANGED: This is the trigger for the victory screen
   if (destroyedBricks >= BRICK_AMOUNT) {
-    gameState = STATE_LEVEL;
+    levelComplete();
     return;
   }
   
@@ -173,45 +152,28 @@ void BreakoutPlugin::hitBrick(byte i) {
 
 void BreakoutPlugin::checkPaddleCollision() {
     if (ball.y != paddle[0].y - 1 || ballMovement[1] < 0) return;
-
     for (byte i = 0; i < PADDLE_WIDTH; i++) {
         if (paddle[i].x == ball.x) {
-            // Update counters
-            if (destroyedBricks == bricksDestroyedAtLastHit) {
-              hitsSinceBrickBreak++;
-            } else {
-              hitsSinceBrickBreak = 0;
-            }
+            if (destroyedBricks == bricksDestroyedAtLastHit) hitsSinceBrickBreak++;
+            else hitsSinceBrickBreak = 0;
             bricksDestroyedAtLastHit = destroyedBricks;
 
-            // --- BOUNCE LOGIC WITH PADDLE SPIN ---
-            ballMovement[1] *= -1; // Always bounce up
+            ballMovement[1] *= -1;
             int paddleCenterIndex = PADDLE_WIDTH / 2;
-
-            if (i < paddleCenterIndex) { // Left side hit
+            if (i < paddleCenterIndex) {
                 ballMovement[0] = -1;
-                // APPLY SPIN: If paddle was moving, give the ball an extra kick
                 if (lastPaddleDirection != 0) ball.x += lastPaddleDirection;
-            } else if (i > paddleCenterIndex) { // Right side hit
+            } else if (i > paddleCenterIndex) {
                 ballMovement[0] = 1;
-                // APPLY SPIN: If paddle was moving, give the ball an extra kick
                 if (lastPaddleDirection != 0) ball.x += lastPaddleDirection;
-            } else { // Center hit
+            } else {
                 bool columnHasBricks = false;
                 for (int j = 0; j < BRICK_AMOUNT; j++) {
-                    if (bricks[j].x != 255 && bricks[j].x == ball.x) {
-                        columnHasBricks = true;
-                        break;
-                    }
+                    if (bricks[j].x != 255 && bricks[j].x == ball.x) { columnHasBricks = true; break; }
                 }
-                if (columnHasBricks) {
-                    ballMovement[0] = 0; // Execute the strategic vertical strike
-                } else {
-                    ballMovement[0] = (random(2) == 0) ? 1 : -1; // Failsafe
-                }
+                if (columnHasBricks) ballMovement[0] = 0;
+                else ballMovement[0] = (random(2) == 0) ? 1 : -1;
             }
-
-            // Ensure the "spin" kick doesn't push the ball out of bounds
             ball.x = constrain(ball.x, 0, X_MAX - 1);
             return;
         }
@@ -219,7 +181,7 @@ void BreakoutPlugin::checkPaddleCollision() {
 }
 
 void BreakoutPlugin::movePaddle(int direction) {
-  lastPaddleDirection = direction; // NEW: Record the direction of movement for this frame
+  lastPaddleDirection = direction;
   int newPos = paddle[0].x + direction;
   if (newPos >= 0 && (newPos + PADDLE_WIDTH) <= X_MAX) {
     for(byte i=0; i<PADDLE_WIDTH; i++) Screen.setPixel(paddle[i].x, paddle[i].y, 0);
@@ -245,7 +207,6 @@ void BreakoutPlugin::checkForUdp() {
   }
   if (controlMode == CONTROL_MANUAL && millis() - lastUdpPacketTime > UDP_TIMEOUT && lastUdpPacketTime != 0) {
     controlMode = CONTROL_AUTO;
-    lastUdpPacketTime = 0;
     Serial.println("Controller timed out. Switching Breakout back to AUTO mode.");
   }
 }
@@ -254,20 +215,19 @@ void BreakoutPlugin::loop() {
   switch (gameState) {
     case STATE_GAME_OVER: initGame(); return;
     case STATE_LEVEL: newLevel(); return;
+    // NEW: Handle the victory state
+    case STATE_VICTORY: gameState = STATE_LEVEL; return;
     case STATE_RUNNING: break;
   }
-
   checkForUdp();
-
   if (millis() - lastGameTick > ballDelay) {
     lastGameTick = millis();
     updateBall();
   }
-
   if (controlMode == CONTROL_AUTO) {
     if (millis() - lastAutoPlayMove > AUTO_PLAY_DELAY) {
       lastAutoPlayMove = millis();
-      lastPaddleDirection = 0; // NEW: Reset paddle direction before the AI thinks
+      lastPaddleDirection = 0;
       autoPlayMove();
     }
   }

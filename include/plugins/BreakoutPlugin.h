@@ -16,7 +16,7 @@ private:
   static const uint8_t PADDLE_WIDTH = 5;
 
   // --- Game States ---
-  enum GameState { STATE_RUNNING, STATE_GAME_OVER, STATE_LEVEL };
+  enum GameState { STATE_RUNNING, STATE_GAME_OVER, STATE_LEVEL, STATE_VICTORY };
   GameState gameState;
 
   enum ControlMode { CONTROL_AUTO, CONTROL_MANUAL };
@@ -58,6 +58,7 @@ private:
   void initGame();
   void newLevel();
   void gameOver();
+  void levelComplete(); 
   void updateBall();
   void hitBrick(unsigned char i);
   void checkPaddleCollision();
