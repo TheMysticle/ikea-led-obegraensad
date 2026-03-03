@@ -12,6 +12,7 @@ public:
   std::vector<int> graph;
   int miny;
   int maxy;
+  bool pendingRemove = false;
 
   void reset()
   {
@@ -73,6 +74,7 @@ private:
   Messages_() = default;
   MessagePool messagePool;
   std::vector<Message *> activeMessages;
+  bool _wasScrolling = false;
 
   int previousMinute = -1;
   int previousSecond = -1;
@@ -83,6 +85,9 @@ public:
 
   Messages_(const Messages_ &) = delete;
   Messages_ &operator=(const Messages_ &) = delete;
+  bool hasMessages() const { return !activeMessages.empty(); }
+  bool wasScrolling() const { return _wasScrolling; }
+  void clearScrollingFlag() { _wasScrolling = false; }
 
   void add(std::string text, int repeat = 0, int id = 0, int delay = 50,
            std::vector<int> graph = {}, int miny = 0, int maxy = 15);

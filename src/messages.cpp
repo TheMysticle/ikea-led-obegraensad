@@ -10,23 +10,23 @@ Messages_ &Messages_::getInstance()
 void Messages_::add(std::string text, int repeat, int id, int delay,
                     std::vector<int> graph, int miny, int maxy)
 {
-  // First remove any existing message with same id
   remove(id);
 
-  // Get a message from the pool
   Message *msg = messagePool.acquire();
   if (msg)
   {
-    msg->id = id;
-    msg->repeat = repeat;
-    msg->delay = delay;
-    msg->text = text;
-    msg->graph = graph;
-    msg->miny = miny;
-    msg->maxy = maxy;
+      msg->id = id;
+      msg->pendingRemove = false;
+      msg->repeat = repeat;
+      msg->delay = delay;
+      msg->text = text;
+      msg->graph = graph;
+      msg->miny = miny;
+      msg->maxy = maxy;
 
-    activeMessages.push_back(msg);
-    previousMinute = -1; // Force immediate display
+      activeMessages.push_back(msg);
+      previousMinute = -1;
+      _wasScrolling = true;
   }
   else
   {
@@ -36,51 +36,60 @@ void Messages_::add(std::string text, int repeat, int id, int delay,
 
 void Messages_::remove(int id)
 {
-  // Find and remove message with matching id
-  auto it = std::find_if(activeMessages.begin(), activeMessages.end(),
-                         [id](const Message *msg)
-                         { return msg->id == id; });
+    auto it = std::find_if(activeMessages.begin(), activeMessages.end(),
+                           [id](const Message *msg)
+                           { return msg->id == id; });
 
-  if (it != activeMessages.end())
-  {
-    messagePool.release(*it);
-    activeMessages.erase(it);
-  }
+    if (it != activeMessages.end())
+    {
+        (*it)->pendingRemove = true;
+    }
 }
 
 void Messages_::scroll()
 {
-  Screen.persist();
-
   for (auto it = activeMessages.begin(); it != activeMessages.end();)
   {
     Message *msg = *it;
 
-    // Print text and graph for the message
-    if (msg->text.length() > 0)
-      Screen.scrollText(msg->text.c_str(), msg->delay);
-    if (msg->graph.size() > 0)
-      Screen.scrollGraph(msg->graph, msg->miny, msg->maxy, msg->delay);
+    // Run all repeats in one blocking call so the main loop
+    // doesn't interfere between passes
+    int passes = (msg->repeat == -1) ? 1 : msg->repeat;
+    bool infinite = (msg->repeat == -1);
 
-    if (msg->repeat != -1)
+    if (infinite)
     {
-      if (--(msg->repeat) < 0)
-      {
-        messagePool.release(msg);
-        it = activeMessages.erase(it);
-      }
-      else
-      {
-        ++it;
-      }
+        if (msg->text.length() > 0)
+            Screen.scrollText(msg->text.c_str(), msg->delay);
+        if (msg->graph.size() > 0)
+            Screen.scrollGraph(msg->graph, msg->miny, msg->maxy, msg->delay);
+
+        // Check flag after each pass
+        if (msg->pendingRemove)
+        {
+            messagePool.release(msg);
+            it = activeMessages.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
     else
     {
-      ++it;
+      // Finite — run ALL passes back to back right here
+      for (int i = 0; i < passes; i++)
+      {
+        if (msg->text.length() > 0)
+          Screen.scrollText(msg->text.c_str(), msg->delay);
+        if (msg->graph.size() > 0)
+          Screen.scrollGraph(msg->graph, msg->miny, msg->maxy, msg->delay);
+      }
+      // Done all passes, remove message
+      messagePool.release(msg);
+      it = activeMessages.erase(it);
     }
   }
-
-  Screen.loadFromStorage();
 }
 
 void Messages_::scrollMessageEveryMinute()

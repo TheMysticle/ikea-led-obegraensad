@@ -141,6 +141,21 @@ void onWsEvent(
                 Scheduler.isBrightnessOverridden = true;
             }
           }
+          else if (!strcmp(event, "data"))
+          {
+              // Lightweight pixel-only response for card matrix preview
+              DynamicJsonDocument dataDoc(2048);
+              JsonArray dataArray = dataDoc.createNestedArray("data");
+              for (int j = 0; j < ROWS * COLS; j++)
+              {
+                  dataArray.add(Screen.getRenderBuffer()[j]);
+              }
+              dataDoc["event"] = "data";
+              String output;
+              serializeJson(dataDoc, output);
+              client->text(output);
+              dataDoc.clear();
+          }
         }
       }
     }

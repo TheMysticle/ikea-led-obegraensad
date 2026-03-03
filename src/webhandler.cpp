@@ -3,6 +3,8 @@
 #include "scheduler.h"
 #include "websocket.h"
 
+extern uint8_t lastKnownBrightness;
+
 // http://your-server/message?text=Hello&repeat=3&id=42&graph=1,2,3,4
 void handleMessage(AsyncWebServerRequest *request)
 {
@@ -12,6 +14,20 @@ void handleMessage(AsyncWebServerRequest *request)
     int delay = request->arg("delay").toInt();
     int miny = request->arg("miny").toInt();
     int maxy = request->arg("maxy").toInt();
+
+    // If text is empty, treat as a clear request
+    if (text.empty())
+    {
+        Messages.remove(id);
+        sendMinimalInfo();
+        StaticJsonDocument<256> jsonResponse;
+        jsonResponse["status"] = "success";
+        jsonResponse["message"] = "Message cleared";
+        String output;
+        serializeJson(jsonResponse, output);
+        request->send(200, "application/json", output);
+        return;
+    }
 
     if (delay <= 0)
     {
@@ -30,13 +46,15 @@ void handleMessage(AsyncWebServerRequest *request)
     char *token = strtok(const_cast<char *>(graphParam.c_str()), ",");
     while (token != nullptr)
     {
-        // Convert the substring to an integer and add it to the vector
         graph.push_back(std::stoi(token));
         token = strtok(nullptr, ",");
     }
 
     // Add the message
     Messages.add(text, repeat, id, delay, graph, miny, maxy);
+
+    // Broadcast state change to all WebSocket clients (e.g. Home Assistant)
+    sendMinimalInfo();
 
     // JSON response
     StaticJsonDocument<256> jsonResponse;
@@ -53,6 +71,9 @@ void handleMessageRemove(AsyncWebServerRequest *request)
 {
     int id = request->arg("id").toInt();
     Messages.remove(id);
+
+    // Broadcast state change to all WebSocket clients
+    sendMinimalInfo();
 
     StaticJsonDocument<256> jsonResponse;
     jsonResponse["status"] = "success";
@@ -72,6 +93,9 @@ void handleSetPlugin(AsyncWebServerRequest *request)
 
     if (pluginManager.getActivePlugin() && pluginManager.getActivePlugin()->getId() == id)
     {
+        // Broadcast state change to all WebSocket clients
+        sendMinimalInfo();
+
         jsonResponse["status"] = "success";
         jsonResponse["message"] = "Plugin set successfully";
         String output;
@@ -104,16 +128,26 @@ void handleSetBrightness(AsyncWebServerRequest *request)
         return;
     }
 
+    // If turning off, save current brightness first
+    if (value == 0 && Screen.getCurrentBrightness() > 0)
+    {
+        lastKnownBrightness = Screen.getCurrentBrightness();
+    }
+    // If turning on with full brightness, restore last known instead
+    else if (value == 255 && Screen.getCurrentBrightness() == 0)
+    {
+        value = lastKnownBrightness;
+    }
+
     Screen.setBrightness(value, true);
     if (Scheduler.isActive) {
         Scheduler.isBrightnessOverridden = true;
     }
 
-    jsonResponse["status"] = "success";
+    sendMinimalInfo();
 
     jsonResponse["status"] = "success";
     jsonResponse["message"] = "Brightness set successfully";
-
     String output;
     serializeJson(jsonResponse, output);
     request->send(200, "application/json", output);
@@ -165,7 +199,6 @@ void handleGetInfo(AsyncWebServerRequest *request)
         JsonObject scheduleItem = scheduleArray.createNestedObject();
         scheduleItem["pluginId"] = item.pluginId;
 
-        // Convert minutes back to HH:MM for the frontend
         char startTimeStr[6], endTimeStr[6];
         sprintf(startTimeStr, "%02d:%02d", item.startTime / 60, item.startTime % 60);
         sprintf(endTimeStr, "%02d:%02d", item.endTime / 60, item.endTime % 60);

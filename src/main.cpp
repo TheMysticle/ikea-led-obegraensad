@@ -384,12 +384,24 @@ void loop()
   pluginManager.runActivePlugin();
 #endif
 
-  if (currentStatus == NONE)
+  if (currentStatus == NONE || currentStatus == SCROLLING)
   {
-    Scheduler.update();
+    if (currentStatus == NONE) Scheduler.update();
 
-    if ((taskCounter % 4) == 0)
+    if (Messages.hasMessages())
     {
+      currentStatus = SCROLLING;
+      Messages.scroll();
+      if (!Messages.hasMessages() && Messages.wasScrolling())
+      {
+        currentStatus = NONE;
+        Messages.clearScrollingFlag();
+      }
+    }
+    else if (Messages.wasScrolling())
+    {
+      currentStatus = NONE;
+      Messages.clearScrollingFlag();
     }
   }
 

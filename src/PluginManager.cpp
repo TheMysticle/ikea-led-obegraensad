@@ -106,7 +106,8 @@ void PluginManager::setupActivePlugin()
 void PluginManager::runActivePlugin()
 {
     if (activePlugin && currentStatus != UPDATE &&
-        currentStatus != LOADING && currentStatus != WSBINARY)
+        currentStatus != LOADING && currentStatus != WSBINARY &&
+        currentStatus != SCROLLING)
     {
         activePlugin->loop();
     }
