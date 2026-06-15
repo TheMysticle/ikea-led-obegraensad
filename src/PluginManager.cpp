@@ -143,7 +143,9 @@ void PluginManager::setActivePlugin(const char *pluginName)
     {
       currentStatus = LOADING; // Prevent plugin loop from drawing during ID display
       activePlugin = plugin;
-      renderPluginId(activePlugin->getId());
+      if (strcmp(activePlugin->getName(), "Tessie") != 0) {
+        renderPluginId(activePlugin->getId());
+      }
       currentStatus = NONE; // Allow plugin to start drawing
       activePlugin->setup();
       break;
@@ -166,7 +168,9 @@ void PluginManager::setupActivePlugin()
 {
   if (activePlugin)
   {
-    renderPluginId(activePlugin->getId());
+    if (strcmp(activePlugin->getName(), "Tessie") != 0) {
+      renderPluginId(activePlugin->getId());
+    }
     activePlugin->setup();
   }
 }
