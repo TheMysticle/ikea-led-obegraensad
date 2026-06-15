@@ -134,7 +134,29 @@ void connectToWiFi()
   wifiManager.setConnectTimeout(5);
   wifiManager.setConfigPortalTimeout(180);
   wifiManager.setWiFiAutoReconnect(true);
+
+  // Setup animated loading screen during connect
+#ifdef ESP32
+  TaskHandle_t loadingTaskHandle = NULL;
+  xTaskCreate([](void *pvParameters) {
+    while(true) {
+      Screen.drawLoadingAnimation(7); // Center it vertically
+      vTaskDelay(pdMS_TO_TICKS(30));
+    }
+  }, "LoadingTask", 2048, NULL, 1, &loadingTaskHandle);
+#else
+  Screen.drawLoadingAnimation(7);
+#endif
+
   wifiManager.autoConnect(WIFI_MANAGER_SSID);
+
+  // Stop animation
+#ifdef ESP32
+  if (loadingTaskHandle != NULL) {
+    vTaskDelete(loadingTaskHandle);
+  }
+#endif
+  Screen.clear();
 
 #ifdef ESP32
   if (MDNS.begin(WIFI_HOSTNAME))

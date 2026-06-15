@@ -70,6 +70,7 @@ void PluginManager::renderPluginId(int pluginId)
   unsigned long startTime = millis();
   while (millis() - startTime < 800)
   {
+    Screen.drawLoadingAnimation(13); // Draw animation below digits
     yield();
 #ifdef ESP32
     vTaskDelay(pdMS_TO_TICKS(10));

@@ -88,6 +88,8 @@ public:
   void drawWeather(int x, int y, int weather, uint8_t brightness = MAX_BRIGHTNESS);
   std::vector<int> readBytes(const std::vector<int> &bytes);
 
+  void drawLoadingAnimation(int y = 13);
+
   void scrollText(const std::string &text,
                   int delayTime = 30,
                   uint8_t brightness = MAX_BRIGHTNESS,

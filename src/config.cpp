@@ -1,5 +1,6 @@
 #include "config.h"
 #include <ArduinoJson.h>
+#include "crypto.h"
 
 Config config;
 
@@ -82,7 +83,8 @@ void Config::load()
     ntpServer = preferences.getString("ntpServer", String(NTP_SERVER));
     tzInfo = preferences.getString("tzInfo", String(TZ_INFO));
     tessieVin = preferences.getString("tessieVin", "");
-    tessieApiKey = preferences.getString("tessieKey", "");
+    String encryptedKey = preferences.getString("tessieKey", "");
+    tessieApiKey = encryptedKey.length() > 0 ? crypto.decryptString(encryptedKey) : "";
     autoStartSchedule = preferences.getBool("autoSchedule", false);
     
     Serial.println("[Config] Configuration loaded from storage");
@@ -106,7 +108,7 @@ void Config::save()
     preferences.putString("ntpServer", ntpServer);
     preferences.putString("tzInfo", tzInfo);
     preferences.putString("tessieVin", tessieVin);
-    preferences.putString("tessieKey", tessieApiKey);
+    preferences.putString("tessieKey", tessieApiKey.length() > 0 ? crypto.encryptString(tessieApiKey) : "");
     preferences.putBool("autoSchedule", autoStartSchedule);
     
     Serial.println("[Config] Configuration saved");
@@ -194,7 +196,7 @@ String Config::toJson() const
   doc["ntpServer"] = ntpServer;
   doc["tzInfo"] = tzInfo;
   doc["tessieVin"] = tessieVin;
-  doc["tessieApiKey"] = tessieApiKey;
+  doc["tessieApiKey"] = tessieApiKey.length() > 0 ? "sk_live_************************" : "";
   doc["autoStartSchedule"] = autoStartSchedule;
   
   String output;
@@ -246,7 +248,10 @@ bool Config::fromJson(const String& json)
   }
   
   if (doc["tessieApiKey"].is<String>()) {
-    tessieApiKey = doc["tessieApiKey"].as<String>();
+    String incomingKey = doc["tessieApiKey"].as<String>();
+    if (incomingKey != "sk_live_************************") {
+      tessieApiKey = incomingKey;
+    }
   }
   
   if (doc["autoStartSchedule"].is<bool>()) {

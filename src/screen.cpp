@@ -395,6 +395,23 @@ void Screen_::drawWeather(int x, int y, int weather, uint8_t brightness)
   drawCharacter(x, y, readBytes(weatherIcons[weather]), 16, brightness);
 }
 
+void Screen_::drawLoadingAnimation(int y)
+{
+  unsigned long elapsed = millis();
+  // Clear the row
+  for(int x = 0; x < 16; x++) {
+    setPixel(x, y, 0);
+  }
+  // Draw 3 dots with varying brightness based on time
+  int b1 = 50 + 150 * ((elapsed / 200) % 3 == 0);
+  int b2 = 50 + 150 * ((elapsed / 200) % 3 == 1);
+  int b3 = 50 + 150 * ((elapsed / 200) % 3 == 2);
+  
+  setPixel(5, y, 1, b1);
+  setPixel(8, y, 1, b2);
+  setPixel(11, y, 1, b3);
+}
+
 void Screen_::scrollText(const std::string &text, int delayTime, uint8_t brightness, uint8_t fontid)
 {
   // lets determine the current font
