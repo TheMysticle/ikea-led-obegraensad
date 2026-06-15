@@ -3,6 +3,9 @@
 #include "mbedtls/aes.h"
 #include "mbedtls/md.h"
 #include "mbedtls/base64.h"
+#ifdef ESP32
+#include <esp_mac.h>
+#endif
 
 CryptoUtils crypto;
 
@@ -17,9 +20,17 @@ void CryptoUtils::begin() {
 
 void CryptoUtils::generateDeviceKey() {
     // We use the MAC address and a salt to generate a 16-byte key
-    String mac = WiFi.macAddress();
+    uint8_t mac[6] = {0};
+#ifdef ESP32
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+#else
+    WiFi.macAddress(mac);
+#endif
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    
     String salt = "WallLampHack_ESP32_KeySalt";
-    String combined = mac + salt;
+    String combined = String(macStr) + salt;
 
     mbedtls_md_context_t ctx;
     mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
