@@ -17,15 +17,22 @@ void Screen_::setBrightness(uint8_t brightness, bool shouldStore)
 {
   brightness_ = brightness;
 
-#ifndef ESP8266
-  pinMode(PIN_ENABLE, OUTPUT);
-  digitalWrite(PIN_ENABLE, LOW);
+  // Invert brightness because PIN_ENABLE is active-LOW
+  uint8_t invertedDuty = 255 - brightness;
+
+#ifdef ESP32
+  // ESP32 uses ledc instead of analogWrite in newer IDF frameworks
+  ledcWrite(PIN_ENABLE, invertedDuty);
+#elif defined(ESP8266)
+  // To avoid breaking timer1 on ESP8266, map to its 10-bit range (0-1023) 
+  // and ensure analogWrite won't conflict with your specific timer settings
+  analogWrite(PIN_ENABLE, (invertedDuty * 1023) / 255);
 #endif
 
 #ifdef ENABLE_STORAGE
   if (shouldStore)
   {
-    storage.begin("led-wall");
+    storage.begin("led-wall", false);
     storage.putUInt("brightness", brightness);
     storage.end();
   }
@@ -128,14 +135,15 @@ void Screen_::setup()
 
   // TODO find proper unused pins for MISO and SS
 #ifdef ESP8266
-  // Initialize control pins
-  pinMode(PIN_LATCH, OUTPUT);
-  digitalWrite(PIN_LATCH, LOW);
-
-  SPI.pins(PIN_CLOCK, 12, PIN_DATA, 15); // SCLK, MISO, MOSI, SS);
+  // Set up pins for ESP8266 SPI
+  SPI.pins(PIN_CLOCK, 12, PIN_DATA, 15);
   SPI.begin();
   SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
 
+  // Configure hardware PWM frequency for ESP8266 to prevent visible banding
+  pinMode(PIN_ENABLE, OUTPUT);
+  analogWriteFreq(2000); // 2kHz is high enough to be completely invisible
+  
   timer1_attachInterrupt(&onScreenTimer);
   timer1_enable(TIM_DIV256, TIM_EDGE, TIM_SINGLE);
   timer1_write(100);
@@ -148,13 +156,17 @@ void Screen_::setup()
   digitalWrite(PIN_LATCH, LOW);
   digitalWrite(PIN_ENABLE, LOW);
 
-  SPI.begin(PIN_CLOCK, -1, PIN_DATA, -1); // SCLK, MISO, MOSI, SS (-1 for unused pins)
+  SPI.begin(PIN_CLOCK, 34, PIN_DATA, 25); // SCLK, MISO, MOSI, SS
   SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
 
-  hw_timer_t *Screen_timer = timerBegin(1000000);
+  ledcAttachChannel(PIN_ENABLE, 5000, 8, 0);
+  hw_timer_t *Screen_timer = timerBegin(1000000); 
   timerAttachInterrupt(Screen_timer, &onScreenTimer);
-  timerAlarm(Screen_timer, TIMER_INTERVAL_US, true, 0);
+  timerAlarm(Screen_timer, TIMER_INTERVAL_US, true, 0); 
 #endif
+
+  // Push initial brightness to hardware right away
+  setBrightness(brightness_, false);
 }
 
 void Screen_::setPixelAtIndex(uint8_t index, uint8_t value, uint8_t brightness)
@@ -249,38 +261,24 @@ IRAM_ATTR void Screen_::onScreenTimer()
   Screen._render();
 }
 
-IRAM_ATTR void Screen_::_render()
+ICACHE_RAM_ATTR void Screen_::_render()
 {
-  const auto buf = (currentStatus == UPDATE) ? renderBuffer_ : getRotatedRenderBuffer();
+  const auto buf = getRotatedRenderBuffer();
 
   // SPI data needs to be 32-bit aligned, round up before divide
-  static unsigned long
-      spi_bits[(ROWS * COLS + 8 * sizeof(unsigned long) - 1) / 8 / sizeof(unsigned long)] = {0};
+  static unsigned long spi_bits[(ROWS * COLS + 8 * sizeof(unsigned long) - 1) / 8 / sizeof(unsigned long)] = {0};
   unsigned char *bits = (unsigned char *)spi_bits;
   memset(bits, 0, ROWS * COLS / 8);
 
   static unsigned char counter = 0;
 
-  if (currentStatus == UPDATE)
+  for (int idx = 0; idx < ROWS * COLS; idx++)
   {
-    for (int idx = 0; idx < ROWS * COLS; idx++)
-    {
-      if (buf[positions[idx]] > 0)
-      {
-        bits[idx >> 3] |= (0x80 >> (idx & 7));
-      }
-    }
+    // Pure, direct buffer comparison against the counter step
+    bits[idx >> 3] |= (buf[positions[idx]] > counter ? 0x80 : 0) >> (idx & 7);
   }
-  else
-  {
-    // Normal rendering with PWM for grayscale
-    for (int idx = 0; idx < ROWS * COLS; idx++)
-    {
-      uint16_t scaledValue = ((uint16_t)buf[positions[idx]] * brightness_) / MAX_BRIGHTNESS;
-      bits[idx >> 3] |= (scaledValue > counter ? 0x80 : 0) >> (idx & 7);
-    }
-    counter += ((MAX_BRIGHTNESS + 1) / GRAY_LEVELS);
-  }
+
+  counter += (256 / GRAY_LEVELS);
 
   digitalWrite(PIN_LATCH, LOW);
   SPI.writeBytes(bits, sizeof(spi_bits));
