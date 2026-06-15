@@ -1,7 +1,6 @@
 import { Component, For, Index, Show } from 'solid-js';
 import Button from './components/button';
 import { Layout } from './components/layout/layout';
-import { Tooltip } from './components/tooltip';
 import { useStore } from './contexts/store';
 import { useToast } from './contexts/toast';
 
@@ -246,15 +245,12 @@ const Scheduler: Component = () => {
 
                 <Show when={store.isActiveScheduler}>
                   <div class="my-6 border-t border-gray-200" />
-                  <Tooltip text="Removes all items and resets state">
-                    <ResetScheduleButton />
-                  </Tooltip>
+                  <ResetScheduleButton />
                 </Show>
               </div>
             </div>
           </div>
           <div class="mt-auto pt-6 border-t border-gray-200">
-            <Tooltip text="Return to main editor">
               <a
                 href="#/"
                 class="inline-flex items-center text-gray-700 hover:text-gray-900 font-medium"
@@ -262,7 +258,6 @@ const Scheduler: Component = () => {
                 <i class="fa-solid fa-arrow-left mr-2" />
                 Back
               </a>
-            </Tooltip>
           </div>
         </>
       }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 // disable if you do not want to have online functionality
 #define ENABLE_SERVER
 
@@ -37,11 +39,15 @@
 #define COLS 16
 #define ROWS 16
 
+// Display constants
+constexpr uint8_t MAX_BRIGHTNESS = 255;
+constexpr uint16_t TOTAL_PIXELS = ROWS * COLS;
+
 // set your city or coords (https://github.com/chubin/wttr.in)
 #define WEATHER_LOCATION "YOURCITY"
 
 // name of WiFi created by the device if no known WiFi is available
-#define WIFI_MANAGER_SSID "Ikea Display Setup WiFi"
+#define WIFI_MANAGER_SSID "IKEA"
 
 // use ALL of the following to use static IP config
 /*
@@ -63,4 +69,4 @@ enum SYSTEM_STATUS
   SCROLLING,
 };
 
-extern SYSTEM_STATUS currentStatus;
+extern volatile SYSTEM_STATUS currentStatus;

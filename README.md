@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD024 -->
+
 # IKEA OBEGRÄNSAD Hack/Mod
 
 Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
@@ -7,169 +9,293 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 
 ![ezgif-3-2019fca7a4](https://user-images.githubusercontent.com/15351728/200184222-a590575d-983d-4ab8-a322-c6bcf433d364.gif)
 
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Hardware Setup](#hardware-setup)
+  - [Opening the Lamp](#opening-the-lamp)
+  - [Understanding the Panels](#understanding-the-panels)
+  - [Pin Configuration](#pin-configuration)
+  - [Alternate Button Wiring](#alternate-button-wiring)
+- [Software Setup](#software-setup)
+  - [ESP32 Setup with VS Code and PlatformIO](#esp32-setup-with-vs-code-and-platformio)
+  - [WiFi Configuration](#wifi-configuration)
+- [OTA Updates](#ota-updates)
+  - [Configuration](#configuration)
+  - [Upload Methods](#upload-methods)
+  - [Visual Feedback](#visual-feedback)
+- [HTTP API Reference](#http-api-reference)
+  - [Device Information](#device-information)
+  - [Plugin Control](#plugin-control)
+  - [Display Control](#display-control)
+  - [Message Display](#message-display)
+  - [Plugin Scheduler](#plugin-scheduler)
+  - [Storage Management](#storage-management)
+- [DDP (Display Data Protocol)](#ddp-display-data-protocol)
+- [Home Assistant Integration](#home-assistant-integration)
+- [Development](#development)
+  - [Plugin Development](#plugin-development)
+- [Troubleshooting](#troubleshooting)
+
+## Features
+
 <details>
-  <summary><h1>Features</h1></summary>
+  <summary>Click to expand feature list</summary>
+
+**General Features:**
 
 - Persist your drawing
 - Rotate image
 - Live Drawing
 - OTA Update
-- Wifi Control
-- Web-GUI
+- WiFi Control
+- Web GUI
 - Load an image
 - Switch plugin by pressing the button
 - Schedule Plugins to switch after "n" seconds
-- Plugins
-  - Draw
-  - Game of life
-  - Breakout
-  - Snake
-  - Stars
-  - Lines
-  - Circle
-  - Clock
-  - Big Clock
-  - Weather
-  - Rain
-  - Animation with the "Animation Creator in Web UI"
-  - Firework
-  - DDP
-  - Pong Clock
+
+**Available Plugins:**
+
+- Draw
+- Game of Life
+- Breakout
+- Snake
+- Stars
+- Lines
+- Circle
+- Clock
+- Big Clock
+- Weather
+- Rain
+- Animation (with Animation Creator in Web UI)
+- Firework
+- DDP (Display Data Protocol)
+- Pong Clock
 
 </details>
 
-# Control the board
+## Quick Start
 
 https://github.com/user-attachments/assets/ddf91be1-2c95-4adc-b178-05b0781683cc
 
-You can control the lamp with a supplied web GUI.
-You can get the IP via serial output or you can search it in your router settings.
+Control the lamp using the built-in web GUI. Find the device IP address via:
 
-# How to
+- Serial monitor output
+- Router admin panel
 
-First of all. This software was written for the ESP32 Dev Board, but it should work with any other Arduino board as well. You just need to remove the WiFi, OTA and web server related code.
+---
 
-The ESP32 I used:
+## Hardware Setup
+
+This software is designed for ESP32 Dev Boards but can work with other Arduino boards (WiFi, OTA, and web server features will need to be removed for non-ESP boards).
+
+**Supported Boards:**
+
+- ESP32 Dev Board (recommended)
+- TTGO LoRa32 V2.1 (T3_V1.6.1)
+- ESP8266 (with limitations: per-pixel brightness only works when storage and global brightness are disabled)
 
 <img src="https://user-images.githubusercontent.com/15351728/200148521-86d0f9e6-2c41-4707-b2d9-8aa24a0e440e.jpg" width="60%" />
 
-Verified to work with TTGO LoRa32 V2.1 (T3_V1.6.1).
-Note: On esp8266 per pixel brightness only works when storage and global brightness (analogWrite) are disabled.
+### Opening the Lamp
 
-## Open the lamp
+IKEA uses rivets instead of regular screws. To open:
 
-I'm sorry to say this, but you'll have to pry open the back of your Lamp, as IKEA didn't install regular screws here. I lifted the back with a screwdriver between the screws and pried it open with a second object, but you can also drill out the rivets to avoid breaking the backpanel.
+1. Insert a screwdriver between the rivets and back panel
+2. Carefully pry open with a second object
+3. Alternative: Drill out the rivets (cleaner but permanent)
 
-## The panels
+### Understanding the Panels
 
 <img src="https://user-images.githubusercontent.com/15351728/200183585-39c1668d-665b-4c12-bcbb-387aec1d3874.JPG" width="60%" />
 
-After you open the back, you will see 4 identical plates. These are each equipped with 64 Leds in 4 fields. We are only interested in the lowest one. Here you will find 6 connectors at the bottom edge, to which we connect our board.
-Above is a microcontroller. You have to remove it, because it contains the standard programs.
+Inside you'll find 4 identical plates with 64 LEDs each (in 4 fields). Focus on the lowest plate:
+
+- 6 connectors at the bottom edge (connection points for your board)
+- Original microcontroller at the top (must be removed)
 
 <img src="https://user-images.githubusercontent.com/86414213/205998862-e9962695-1328-49ea-b546-be592cbad3c2.jpg" width="90%" />
 
-### ESP32 Setup with VS Code and PlatformIO
+### Pin Configuration
 
-1. **Prerequisites**
+Connect the pins as shown below. Remember to configure them in `include/constants.h` according to your board.
 
-   - Install **[Visual Studio Code](https://code.visualstudio.com/)**.
-   - Install the **PlatformIO IDE** extension from the VS Code Extensions Marketplace.
-
-2. **Clone the Project**
-
-   - Download the project from GitHub and open it in VS Code. PlatformIO will automatically load dependencies.
-
-```bash
-git clone git@github.com:ph1p/ikea-led-obegraensad.git
-cd ikea-led-obegraensad
-code .
-```
-
-3. **Connect ESP32**
-
-   - Connect your ESP32 via USB.
-   - Check the COM port in the **PlatformIO Devices** tab.
-
-4. **Prepare the Project**
-
-   - Perform a `PlatformIO: Clean` (Recycle bin icon at the bottom right).
-   - Add a `secrets.h` file to the `include` directory. Modify passwords and save the file. Go in the next section for WiFi instructions.
-
-```cpp
-#pragma once
-
-#define WIFI_HOSTNAME ""
-
-#ifdef ESP8266
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
-#endif
-
-#define OTA_USERNAME ""
-#define OTA_PASSWORD ""
-```
-
-- Set variables inside `include/constants.h`.
-
-5. **Build the Project**
-
-   - Click the `PlatformIO Build` icon (bottom right corner).
-   - Check the log for missing libraries.
-     - Use the **Libraries** icon in PlatformIO to install required libraries.
-   - Repeat `Clean` and `Build` until the build succeeds.
-
-6. **Upload to ESP32**
-   - Click `PlatformIO Upload` (bottom right) to upload the firmware to the ESP32.
-
-### Configuring WiFi with WiFi manager
-
-_Note:_ The WiFi manager only works on ESP32. For ESP8266, `WIFI_SSID` and `WIFI_PASSWORD` need to be provided in `secrets.h`.
-
-This project uses [tzapu's WiFiManager](https://github.com/tzapu/WiFiManager). After booting up, the device will try
-to connect to known access points. If no known access point is available, the device will create a network called
-`Ikea Display Setup WiFi`. Connect to this network on any device. A captive portal will pop up and will take you
-through the configuration process. After a successful connection, the device will reboot and is ready to go.
-
-The name of the created network can be changed by modifying `WIFI_MANAGER_SSID` in `include/constants.h`.
-
-### PINS
-
-Connect them like this and remember to set them in `include/constants.h` according to your board.
-
-|       LCD        | ESP32  | TTGO LoRa32 | NodeMCUv2 | Lolin D32 (Pro) |
-| :--------------: | :----: | :---------: | :-------: | :-------------: |
-|       GND        |  GND   |     GND     |    GND    |       GND       |
-|       VCC        |   5V   |     5V      |    VIN    |       USB       |
-| EN (PIN_ENABLE)  | GPIO26 |    IO22     | GPIO16 D0 |     GPIO26      |
-|  IN (PIN_DATA)   | GPIO27 |    IO23     | GPIO13 D7 |     GPIO27      |
-| CLK (PIN_CLOCK)  | GPIO14 |    IO02     | GPIO14 D5 |     GPIO14      |
-| CLA (PIN_LATCH)  | GPIO12 |    IO15     | GPIO0 D3  |     GPIO12      |
-|  BUTTON one end  | GPIO16 |    IO21     | GPIO2 D4  |     GPIO25      |
-| BUTTON other end |  GND   |     GND     |    GND    |       GND       |
+|       LCD        | ESP32  | TTGO LoRa32 | NodeMCUv2 | Lolin D32 (Pro) | Xiao ESP32S3 |
+| :--------------: | :----: | :---------: | :-------: | :-------------: | :----------: |
+|       GND        |  GND   |     GND     |    GND    |       GND       |     GND      |
+|       VCC        |   5V   |     5V      |    VIN    |       USB       |     VUSB     |
+| EN (PIN_ENABLE)  | GPIO26 |    IO22     | GPIO16 D0 |     GPIO26      |  D4 (GPIO5)  |
+|  IN (PIN_DATA)   | GPIO27 |    IO23     | GPIO13 D7 |     GPIO27      |  D10 (MOSI)  |
+| CLK (PIN_CLOCK)  | GPIO14 |    IO02     | GPIO14 D5 |     GPIO14      |   D8 (SCK)   |
+| CLA (PIN_LATCH)  | GPIO12 |    IO15     | GPIO0 D3  |     GPIO12      |  D5 (GPIO6)  |
+|  BUTTON one end  | GPIO16 |    IO21     | GPIO2 D4  |     GPIO25      |  D3 (GPIO4)  |
+| BUTTON other end |  GND   |     GND     |    GND    |       GND       |     GND      |
 
 <img src="https://user-images.githubusercontent.com/86414213/205999001-6213fc4f-be2f-4305-a17a-44fdc9349069.jpg" width="60%" />
 
 ### Alternate Button Wiring
 
-Thanks to [RBEGamer](https://github.com/RBEGamer) who is showing in this [issue](https://github.com/ph1p/ikea-led-obegraensad/issues/79) how to use the original button wiring. With this solution you won't need the "BUTTON one end" and "BUTTON other end" soldering from the table above.
-# HTTP API Endpoints
+You can use the original button wiring without adding external connections. See [this issue](https://github.com/ph1p/ikea-led-obegraensad/issues/79) by [RBEGamer](https://github.com/RBEGamer) for details.
 
-## Get Information
+---
 
-Get current values and the (fixed) metadata, like number of rows and columns and a list of available plugins.
+## Software Setup
+
+### ESP32 Setup with VS Code and PlatformIO
+
+1. **Prerequisites**
+
+   - Install [Visual Studio Code](https://code.visualstudio.com/)
+   - Install the PlatformIO IDE extension from VS Code Extensions Marketplace
+
+2. **Clone the Project**
+
+   ```bash
+   git clone git@github.com:ph1p/ikea-led-obegraensad.git
+   cd ikea-led-obegraensad
+   code .
+   ```
+
+   PlatformIO will automatically load dependencies.
+
+3. **Connect ESP32**
+
+   - Connect your ESP32 via USB
+   - Verify the COM port in the PlatformIO Devices tab
+
+4. **Configure the Project**
+
+   - Run `PlatformIO: Clean` (Recycle bin icon in bottom toolbar)
+   - Edit `include/secrets.h` with your WiFi credentials (ESP8266 only; ESP32 can use WiFi Manager)
+   - Configure variables in `include/constants.h`
+
+5. **Build the Project**
+
+   - Click the `PlatformIO Build` icon (bottom toolbar)
+   - If libraries are missing, install them via the PlatformIO Libraries tab
+   - Repeat `Clean` and `Build` until successful
+
+6. **Upload to ESP32**
+   - Click `PlatformIO Upload` (bottom toolbar)
+
+### WiFi Configuration
+
+**ESP32 (WiFi Manager - Recommended):**
+
+This project uses [tzapu's WiFiManager](https://github.com/tzapu/WiFiManager). After booting:
+
+1. Device attempts to connect to known access points
+2. If none available, creates network named `Ikea Display Setup WiFi`
+3. Connect to this network on any device
+4. Captive portal guides you through WiFi configuration
+5. Device reboots and connects to your network
+
+\*_Network name can be changed via `WIFI_MANAGER_SSID` in `include/constants.h`._
+
+**ESP8266 (Manual Configuration):**
+
+For ESP8266, WiFi Manager is not available. Set `WIFI_SSID` and `WIFI_PASSWORD` in `include/secrets.h`.
+
+---
+
+## OTA Updates
+
+Over-The-Air (OTA) updates allow you to upload new firmware wirelessly without a USB connection. This is powered by [ElegantOTA](https://github.com/ayushsharma82/ElegantOTA).
+
+### Configuration
+
+Before using OTA, configure the following:
+
+1. **Set OTA Credentials** in `include/secrets.h`:
+
+   ```cpp
+   #define OTA_USERNAME "admin"
+   #define OTA_PASSWORD "your-password"
+   ```
+
+2. **Configure Upload Settings** in `platformio.ini` (for the `esp32dev` environment):
+   ```ini
+   extra_scripts = upload.py
+   upload_protocol = custom
+   custom_upload_url = http://192.168.178.50  # Your device IP
+   custom_username = admin
+   custom_password = your-password
+   ```
+
+**Note:** Replace `192.168.178.50` with your device's actual IP address.
+
+### Upload Methods
+
+#### Method 1: Web Interface (Manual Upload)
+
+1. Navigate to `http://your-device-ip/update` in your browser
+2. Login with your configured credentials (default: `admin` / `ikea-led-wall`)
+3. Select your firmware file (`.pio/build/esp32dev/firmware.bin`)
+4. Click "Update" and wait for completion
+5. Device will automatically reboot with new firmware
+
+#### Method 2: PlatformIO (Automated Upload)
+
+Upload directly from PlatformIO via the command line:
+
+```bash
+pio run -e esp32dev -t upload
+```
+
+Or use the PlatformIO Upload button in VS Code (bottom toolbar).
+
+**Requirements:**
+
+- Python packages: `requests_toolbelt` and `tqdm`
+- Install if needed: `pip install requests_toolbelt tqdm`
+
+### Visual Feedback
+
+During OTA updates, the LED matrix provides visual feedback:
+
+- **"U" letter displayed**: Update has started
+- **Serial output**: Progress updates every second
+- **"R" letter displayed**: Update completed (device will reboot)
+
+Monitor the serial output for detailed progress:
 
 ```
-GET http://your-server/api/info
+OTA update started!
+OTA Progress Current: 262144 bytes, Final: 1440655 bytes
+OTA Progress Current: 524288 bytes, Final: 1440655 bytes
+...
+OTA update finished successfully!
 ```
 
-### Example `curl` Command:
+**Troubleshooting:**
+
+- Ensure device is connected to the same network
+- Verify IP address in `platformio.ini` matches device IP
+- Check credentials match in both `secrets.h` and `platformio.ini`
+- For upload failures, try the web interface method first
+
+---
+
+## HTTP API Reference
+
+Base URL: `http://your-server/api`
+
+### Device Information
+
+**Get device info, current state, and available plugins**
+
+```http
+GET /api/info
+```
+
+**Example:**
 
 ```bash
 curl http://your-server/api/info
 ```
 
-### Response
+**Response:**
 
 ```json
 {
@@ -181,46 +307,33 @@ curl http://your-server/api/info
   "brightness": 255,
   "scheduleActive": true,
   "schedule": [
-    {
-      "pluginId": 2,
-      "duration": 60
-    },
-    {
-      "pluginId": 4,
-      "duration": 120
-    }
+    { "pluginId": 2, "duration": 60 },
+    { "pluginId": 4, "duration": 120 }
   ],
   "plugins": [
-    {"id": 1, "name": "Plugin One"},
-    {"id": 2, "name": "Plugin Two"},
-    {"id": 3, "name": "Plugin Three"}
+    { "id": 1, "name": "Plugin One" },
+    { "id": 2, "name": "Plugin Two" }
   ]
 }
 ```
 
 ---
 
-## Set Active Plugin by ID
+### Plugin Control
 
-To set an active plugin by ID, make an HTTP PATCH request to the following endpoint, passing the parameter as a query string:
+**Set active plugin by ID**
 
+```http
+PATCH /api/plugin?id={plugin_id}
 ```
-PATCH http://your-server/api/plugin
-```
 
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl -X PATCH "http://your-server/api/plugin?id=7"
 ```
 
-### Parameters
-
-- `id` (required): The ID of the plugin to set as active.
-
-### Response
-
-- **Success:**
+**Response:**
 
 ```json
 {
@@ -229,7 +342,7 @@ curl -X PATCH "http://your-server/api/plugin?id=7"
 }
 ```
 
-- **Error (Plugin not found):**
+**Error Response:**
 
 ```json
 {
@@ -240,27 +353,21 @@ curl -X PATCH "http://your-server/api/plugin?id=7"
 
 ---
 
-## Set Brightness
+### Display Control
 
-To set the brightness of the LED display, make an HTTP PATCH request to the following endpoint, passing the parameter as a query string:
+#### Set Brightness
 
+```http
+PATCH /api/brightness?value={0-255}
 ```
-PATCH http://your-server/api/brightness
-```
 
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl -X PATCH "http://your-server/api/brightness?value=100"
 ```
 
-### Parameters
-
-- `value` (required): The brightness value (0..255).
-
-### Response
-
-- **Success:**
+**Response:**
 
 ```json
 {
@@ -269,32 +376,21 @@ curl -X PATCH "http://your-server/api/brightness?value=100"
 }
 ```
 
-- **Error (Invalid Brightness Value):**
+#### Get Display Data
 
-```json
-{
-  "error": true,
-  "errormessage": "Invalid brightness value: 300 - must be between 0 and 255."
-}
+Retrieve current display data as a byte-array. Each byte represents pixel brightness (0-255). Global brightness is applied after these values.
+
+```http
+GET /api/data
 ```
 
----
-
-## Get Current Display Data
-
-To get the current displayed data as a byte-array, each byte representing the brightness value. Be aware that the global brightness value gets applied AFTER these values.
-
-```
-GET http://your-server/api/data
-```
-
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl http://your-server/api/data
 ```
 
-### Response (Raw Byte-Array Example)
+**Response:**
 
 ```json
 [255, 255, 255, 0, 128, 255, 255, 0, ...]
@@ -302,128 +398,33 @@ curl http://your-server/api/data
 
 ---
 
-# Plugin Scheduler
+### Message Display
 
-It is possible to switch between plugins automatically.  
-You can define your schedule in the Web UI or just send an API call.
+#### Display a Message
 
-### Set Schedule
+Display scrolling text and/or graphs on the LED matrix.
 
-To define a schedule for switching between plugins automatically, make a POST request with your schedule data:
-
-```bash
-curl -X POST http://your-server/api/schedule -d 'schedule=[{"pluginId":10,"duration":2},{"pluginId":8,"duration":5}]'
+```http
+GET /api/message
 ```
 
-#### Example Response
+**Parameters:**
 
-```json
-{
-  "status": "success",
-  "message": "Schedule updated"
-}
-```
+- `text` (optional): Text message to display
+- `graph` (optional): Comma-separated integers (0-15) representing a graph
+- `miny` (optional): Graph lower bound (default: 0)
+- `maxy` (optional): Graph upper bound (default: 15)
+- `repeat` (optional): Repetition count (default: 1, use `-1` for infinite)
+- `id` (optional): Unique identifier for the message
+- `delay` (optional): Scroll delay in ms (default: 50)
 
-### Clear Schedule
-
-To clear the existing schedule, make a GET request:
-
-```bash
-curl http://your-server/api/schedule/clear
-```
-
-#### Example Response
-
-```json
-{
-  "status": "success",
-  "message": "Schedule cleared"
-}
-```
-
-### Start Schedule
-
-To start the current schedule, make a GET request:
-
-```bash
-curl http://your-server/api/schedule/start
-```
-
-#### Example Response
-
-```json
-{
-  "status": "success",
-  "message": "Schedule started"
-}
-```
-
-### Stop Schedule
-
-To stop the current schedule, make a GET request:
-
-```bash
-curl http://your-server/api/schedule/stop
-```
-
-#### Example Response
-
-```json
-{
-  "status": "success",
-  "message": "Schedule stopped"
-}
-```
-
----
-
-## Get Display Data
-
-To retrieve the current display data as a byte-array, each byte representing the brightness value. The global brightness is applied after these values.
-
-```
-GET http://your-server/api/data
-```
-
-#### Example `curl` Command:
-
-```bash
-curl http://your-server/api/data
-```
-
-### Response (Raw Byte-Array Example)
-
-```json
-[255, 255, 255, 0, 128, 255, 255, 0, ...]
-```
-
----
-
-## Message Display
-
-To display a message on the LED display, users can make an HTTP GET request to the following endpoint:
-
-```
-GET http://your-server/api/message
-```
-
-### Parameters
-
-- `text` (optional): The text message to be displayed on the LED display.
-- `graph` (optional): A comma-separated list of integers representing a graph (0-15).
-- `miny` (optional): Scaling for the lower end of the graph, defaults to 0.
-- `maxy` (optional): Scaling for the upper end of the graph, defaults to 15.
-- `repeat` (optional): Number of times the message should be repeated. Default is 1. Set to `-1` for infinite.
-- `id` (optional): A unique identifier for the message.
-- `delay` (optional): Delay in ms between every scroll movement. Default is 50ms.
-
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl "http://your-server/api/message?text=Hello&graph=8,5,2,1,0,0,1,4,7,10,13,14,15,15,14,11&repeat=3&id=1&delay=60"
 ```
 
-### Response
+**Response:**
 
 ```json
 {
@@ -432,82 +433,339 @@ curl "http://your-server/api/message?text=Hello&graph=8,5,2,1,0,0,1,4,7,10,13,14
 }
 ```
 
----
+#### Remove a Message
 
-## Message Removal
-
-To remove a message from the display, users can make an HTTP GET request to the following endpoint:
-
-```
-GET http://your-server/api/removemessage
+```http
+GET /api/removemessage?id={message_id}
 ```
 
-### Parameters
-
-- `id` (required): The unique identifier of the message to be removed.
-
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl "http://your-server/api/removemessage?id=1"
 ```
 
-### Response
+---
 
-```json
-{
-  "status": "success",
-  "message": "Message removed"
-}
+### Plugin Scheduler
+
+Automatically switch between plugins on a schedule.
+
+#### Set Schedule
+
+```http
+POST /api/schedule
+```
+
+**Example:**
+
+```bash
+curl -X POST http://your-server/api/schedule -d 'schedule=[{"pluginId":10,"duration":2},{"pluginId":8,"duration":5}]'
+```
+
+#### Start Schedule
+
+```http
+GET /api/schedule/start
+```
+
+#### Stop Schedule
+
+```http
+GET /api/schedule/stop
+```
+
+#### Clear Schedule
+
+```http
+GET /api/schedule/clear
 ```
 
 ---
 
-## Clear Storage
+### Storage Management
 
-To clear the data storage:
+#### Clear Storage
 
+```http
+GET /api/clearstorage
 ```
-GET http://your-server/api/clearstorage
-```
 
-#### Example `curl` Command:
+**Example:**
 
 ```bash
 curl http://your-server/api/clearstorage
 ```
 
-### Response
+---
 
-```json
-{
-  "status": "success",
-  "message": "Storage cleared"
-}
+## DDP (Display Data Protocol)
+
+DDP enables real-time LED matrix control via UDP packets. External applications can send pixel data directly over the network.
+
+### Python project setup with Poetry
+
+Please [install Poetry](https://python-poetry.org/docs/#installation) for an easy way to setup the Python environment.
+
+To install all required dependencies and create a virtual environment run:
+
+```bash
+poetry install
 ```
 
-# Development
+VS Code should detect the venv automatically and prompt you to activate it. Once that's done you can use the `python` command as usual. Alternatively use the `poetry run` command to make sure the python from the virtual environment is executed, e.g.:
 
-- `src` contains the arduino code.
+```bash
+poetry run python ddp.py clear
+```
 
-  - Run it with platform io
-  - You can uncomment the OTA lines in `platformio.ini` if you want. Replace the IP with your device IP.
+### Quick Start
 
-- `frontend` contains the web code.
+1. **Enable DDP Plugin**
 
-  - First run `pnpm install`
-  - Set your device IP inside the `.env` file
-  - Start the server with `pnpm dev`
-  - Build it with `pnpm build`. This command creates the `webgui.cpp` for you.
+   ```bash
+   curl -X PATCH "http://your-server/api/plugin?id=17"
+   ```
 
-- Build frontend using `Docker`
-  - From the root of the repo, run `docker compose run node`
+2. **Send Pixels**
 
-# Plugin Development
+   ```bash
+   python3 ddp.py --ip 192.168.178.50 --fill 128
+   ```
 
-1. Start by creating a new C++ file for your plugin. For example, let's call it plugins/MyPlugin.(cpp/h).
+### Using ddp.py
 
-**plugins/MyPlugin.h**
+The included Python script (`ddp.py`) simplifies DDP packet creation. It offers a rudimentary command line interface to control display content.
+
+**Clear all pixels:**
+
+```bash
+python3 ddp.py clear --ip 192.168.178.50
+```
+
+**Fill display with brightness value:**
+
+```bash
+python3 ddp.py fill 128 --ip 192.168.178.50
+```
+
+**Set individual pixels (X, Y, brightness):**
+
+```bash
+python3 ddp.py pixels --ip 192.168.178.50 -p 0 0 255 -p 15 15 128
+```
+
+**Subcommands:**
+
+- `clear`: Clear all pixels
+- `fill BRIGHTNESS`: Fill with brightness (0-255)
+- `pixels -p X Y BRIGHTNESS`: Set pixel (-p can be used multiple times)
+
+**Options (for all subcommands):**
+
+- `--ip`: Display IP address (default: 192.168.178.50)
+- `--port`: UDP port (default: 4048)
+- `-v, --verbose`: Write more information to output
+- `-d, --debug`: Write even more information to output
+
+**Legacy options (still available for compatibility):**
+
+- `--clear`: Clear all pixels
+- `--fill BRIGHTNESS`: Fill with brightness (0-255)
+- `--pixel X Y BRIGHTNESS`: Set pixel (can be used multiple times)
+
+**Coordinates:**
+
+- Matrix: 16×16 pixels
+- X: 0-15 (left to right)
+- Y: 0-15 (top to bottom)
+- Brightness: 0-255
+
+### Protocol Specification
+
+**Packet Structure:**
+
+```text
+[Header: 10 bytes][RGB Data: 768 bytes for 16×16]
+```
+
+**Header (10 bytes):**
+
+- Byte 0: `0x41` (Version 1)
+- Byte 1: `0x00` (Flags)
+- Bytes 2-9: `0x00` (Reserved)
+
+**RGB Data:**
+
+- 3 bytes per pixel (R, G, B)
+- Total: 16 × 16 × 3 = 768 bytes
+- Order: Row-major (left to right, top to bottom)
+- Brightness calculated as: `(R + G + B) / 3`
+
+**Single Pixel Mode:**
+Send only 3 RGB bytes (total: 13 bytes) to apply the same color to all pixels.
+
+**Example (Python):**
+
+```python
+import socket
+
+# Create DDP packet
+header = bytearray([0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+pixels = bytearray([128, 128, 128] * 256)  # Fill with mid-brightness
+packet = header + pixels
+
+# Send packet
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.sendto(packet, ("192.168.178.50", 4048))
+sock.close()
+```
+
+---
+
+## Home Assistant Integration
+
+### HACS Integration (Recommended)
+
+Use [this Home Assistant Integration](https://github.com/HennieLP/ikea-led-obegraensad-Home-Assistant-Integration) for easy setup with seamless integration and instant updates via websockets.
+
+### HTTP API Integration
+
+Example automation to adjust brightness based on sun position:
+
+**configuration.yaml:**
+
+```yaml
+rest_command:
+  obegraensad_brightness_high:
+    url: 'http://your-server/api/brightness/'
+    method: PATCH
+    content_type: 'application/x-www-form-urlencoded'
+    payload: 'value=100'
+  obegraensad_brightness_low:
+    url: 'http://your-server/api/brightness/'
+    method: PATCH
+    content_type: 'application/x-www-form-urlencoded'
+    payload: 'value=1'
+```
+
+**Automation (Settings → Automations → Edit in YAML):**
+
+```yaml
+alias: Obegraensad low brightness
+description: ''
+triggers:
+  - trigger: sun
+    event: sunset
+    offset: 0
+conditions: []
+actions:
+  - action: rest_command.obegraensad_brightness_low
+    data: {}
+mode: single
+```
+
+Create a second automation or condition to call `rest_command.obegraensad_brightness_high` at sunrise.
+
+---
+
+## Development
+
+### Arduino/C++ Development
+
+**Structure:**
+
+- `src/` - Arduino code
+- `platformio.ini` - Build configuration
+  - See [OTA Updates](#ota-updates) section for wireless firmware upload configuration
+
+### Frontend Development
+
+**Structure:**
+
+- `frontend/` - Web UI code built with solidjs
+- `frontend/src/` - Source files
+- `frontend/dist/` - Built files (generated)
+
+**Prerequisites:**
+
+This project uses [pnpm](https://pnpm.io/) as the package manager. pnpm is an alternative to npm.
+
+**Install pnpm:**
+
+```bash
+# Using npm
+npm install -g pnpm
+
+# Using Homebrew (macOS)
+brew install pnpm
+
+# Using Corepack (Node.js 16.13+)
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+**Setup:**
+
+```bash
+cd frontend
+pnpm install
+```
+
+**Configuration:**
+
+Create a `.env` file in the `frontend/` directory and set your device IP:
+
+```bash
+VITE_DEVICE_IP=192.168.178.50
+```
+
+This allows the development server to proxy API requests to your device during development.
+
+**Commands:**
+
+- `pnpm dev` - Start development server with hot reload (usually at `http://localhost:5173`)
+- `pnpm build` - Build optimized production bundle and generate `webgui.cpp` for ESP32
+- `pnpm preview` - Preview production build locally
+- `pnpm lint` - Run linter to check code quality
+- `pnpm format` - Format code with Prettier
+
+**Development Workflow:**
+
+1. Start the development server: `pnpm dev`
+2. Make changes to files in `frontend/src/`
+3. Changes will hot-reload in your browser
+4. Test your changes against a running device
+5. When ready, run `pnpm build` to generate the embedded web UI
+6. The build process creates `src/webgui.cpp` which is compiled into the firmware
+
+**Docker Build:**
+
+If you prefer using Docker instead of installing Node.js and pnpm locally:
+
+```bash
+docker compose run node
+```
+
+### Code Quality
+
+**Pre-commit Hooks:**
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Activate hooks
+pre-commit install
+```
+
+---
+
+### Plugin Development
+
+#### **1. Create Plugin Files**
+
+**plugins/MyPlugin.h:**
 
 ```cpp
 #pragma once
@@ -524,11 +782,11 @@ public:
     const char* getName() const override;
 
     void teardown() override; // optional
-    void websocketHook(DynamicJsonDocument &request) override; // optional
+    void websocketHook(JsonDocument &request) override; // optional
 };
 ```
 
-**plugins/MyPlugin.cpp**
+**plugins/MyPlugin.cpp:**
 
 ```cpp
 #include "plugins/MyPlugin.h"
@@ -550,15 +808,15 @@ const char* MyPlugin::getName() const {
 }
 
 void MyPlugin::teardown() {
-  // code if plugin gets deactivated
+    // code if plugin gets deactivated
 }
 
-void MyPlugin::websocketHook(DynamicJsonDocument &request) {
-  // handle websocket requests
+void MyPlugin::websocketHook(JsonDocument &request) {
+    // handle websocket requests
 }
 ```
 
-2. Add your plugin to the `main.cpp`.
+#### **2. Register Plugin in main.cpp**
 
 ```cpp
 #include "plugins/MyPlugin.h"
@@ -566,9 +824,20 @@ void MyPlugin::websocketHook(DynamicJsonDocument &request) {
 pluginManager.addPlugin(new MyPlugin());
 ```
 
-# Troubleshooting
+---
 
-## Flickering panel
+## Troubleshooting
 
-- Check all soldering points, especially VCC
-- Check if the board gets enough power
+### Flickering Panel
+
+- Verify all soldering points, especially VCC
+- Ensure adequate power supply to the board
+- Check for loose connections
+- Try to connect the power supply directly to the microcontroller board
+
+### Microcontroller is stuck in boot loop / flickering panel / black panel
+
+- Break the 5V connection between the matrix display and the microcontroller board (cut cable between controller and VCC and insulate ends with tape)
+- Use separate USB power cables for the microcontroller and the matrix display (e.g. by using a power supply with 2x5V output of 10W each)
+- Reason: When voltage drops too low on the microcontroller board output pins might not reach 3.3V, since the matrix display is actually expecting a 0V-5V signal the resulting output voltage of the microcontroller might be lower than the threshold of the matrix display resulting in flickering / completely black matrix displays. Additionally must power supplies only deliver 10W per port which is not always sufficient to power microcontroller and matrix displays (especially at brightness 100% and more than half the pixels being lit)
+- Has the additional advantage that you can upload firmware without dissassembly of the backpanel if you cannot use OTA updates

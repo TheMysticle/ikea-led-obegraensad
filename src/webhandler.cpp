@@ -1,19 +1,47 @@
 #include "webhandler.h"
+#include "config.h"
 #include "messages.h"
 #include "scheduler.h"
 #include "websocket.h"
+#ifdef ESP32
+#include <WiFi.h>
+#else
+#include <ESP8266WiFi.h>
+#endif
+
+void sendJsonSuccess(AsyncWebServerRequest *request, const char *message)
+{
+  JsonDocument jsonResponse;
+  jsonResponse["status"] = "success";
+  jsonResponse["message"] = message;
+
+  String output;
+  serializeJson(jsonResponse, output);
+  request->send(200, "application/json", output);
+}
+
+void sendJsonError(AsyncWebServerRequest *request, int statusCode, const char *error)
+{
+  JsonDocument jsonResponse;
+  jsonResponse["error"] = true;
+  jsonResponse["message"] = error;
+
+  String output;
+  serializeJson(jsonResponse, output);
+  request->send(statusCode, "application/json", output);
+}
 
 extern uint8_t lastKnownBrightness;
 
 // http://your-server/message?text=Hello&repeat=3&id=42&graph=1,2,3,4
 void handleMessage(AsyncWebServerRequest *request)
 {
-    std::string text = request->arg("text").c_str();
-    int repeat = request->arg("repeat").toInt();
-    int id = request->arg("id").toInt();
-    int delay = request->arg("delay").toInt();
-    int miny = request->arg("miny").toInt();
-    int maxy = request->arg("maxy").toInt();
+  std::string text = request->arg("text").c_str();
+  int repeat = request->arg("repeat").toInt();
+  int id = request->arg("id").toInt();
+  int delay = request->arg("delay").toInt();
+  int miny = request->arg("miny").toInt();
+  int maxy = request->arg("maxy").toInt();
 
     // If text is empty, treat as a clear request
     if (text.empty())
@@ -34,99 +62,74 @@ void handleMessage(AsyncWebServerRequest *request)
         delay = 50;
     }
 
-    if (maxy == 0)
-    {
-        maxy = 15;
-    }
+  if (maxy == 0)
+  {
+    maxy = 15;
+  }
 
-    // Extracting the 'graph' parameter as a comma-separated list of integers
-    std::string graphParam = request->arg("graph").c_str();
-    std::vector<int> graph;
+  // Extracting the 'graph' parameter as a comma-separated list of integers
+  std::string graphParam = request->arg("graph").c_str();
+  std::vector<int> graph;
 
-    char *token = strtok(const_cast<char *>(graphParam.c_str()), ",");
-    while (token != nullptr)
-    {
-        graph.push_back(std::stoi(token));
-        token = strtok(nullptr, ",");
-    }
+  char *token = strtok(const_cast<char *>(graphParam.c_str()), ",");
+  while (token != nullptr)
+  {
+    // Convert the substring to an integer and add it to the vector
+    graph.push_back(std::stoi(token));
+    token = strtok(nullptr, ",");
+  }
 
-    // Add the message
-    Messages.add(text, repeat, id, delay, graph, miny, maxy);
+  // Add the message
+  Messages.add(text, repeat, id, delay, graph, miny, maxy);
 
-    // Broadcast state change to all WebSocket clients (e.g. Home Assistant)
-    sendMinimalInfo();
-
-    // JSON response
-    StaticJsonDocument<256> jsonResponse;
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Message received";
-
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+  // Broadcast state change to all WebSocket clients (e.g. Home Assistant)
+  sendMinimalInfo();
+  sendJsonSuccess(request, "Message received");
 }
 
 // http://your-server/removemessage?id=42
 void handleMessageRemove(AsyncWebServerRequest *request)
 {
-    int id = request->arg("id").toInt();
-    Messages.remove(id);
+  int id = request->arg("id").toInt();
+  Messages.remove(id);
 
-    // Broadcast state change to all WebSocket clients
-    sendMinimalInfo();
-
-    StaticJsonDocument<256> jsonResponse;
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Message removed";
-
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+  // Broadcast state change to all WebSocket clients
+  sendMinimalInfo();
+  sendJsonSuccess(request, "Message removed");
 }
 
 void handleSetPlugin(AsyncWebServerRequest *request)
 {
-    int id = request->arg("id").toInt();
-    pluginManager.setActivePluginById(id);
+  int id = request->arg("id").toInt();
+  pluginManager.setActivePluginById(id);
 
-    StaticJsonDocument<256> jsonResponse;
-
-    if (pluginManager.getActivePlugin() && pluginManager.getActivePlugin()->getId() == id)
-    {
-        // Broadcast state change to all WebSocket clients
-        sendMinimalInfo();
-
-        jsonResponse["status"] = "success";
-        jsonResponse["message"] = "Plugin set successfully";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(200, "application/json", output);
-    }
-    else
-    {
-        jsonResponse["error"] = true;
-        jsonResponse["errormessage"] = "Could not set plugin to id " + std::to_string(id);
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(422, "application/json", output);
-    }
+  if (pluginManager.getActivePlugin() && pluginManager.getActivePlugin()->getId() == id)
+  {
+    sendMinimalInfo(); // Broadcast state change
+    sendJsonSuccess(request, "Plugin set successfully");
+  }
+  else
+  {
+    char errorMsg[64];
+    snprintf(errorMsg, sizeof(errorMsg), "Could not set plugin to id %d", id);
+    sendJsonError(request, 422, errorMsg);
+  }
 }
 
 void handleSetBrightness(AsyncWebServerRequest *request)
 {
-    int value = request->arg("value").toInt();
+  int value = request->arg("value").toInt();
 
-    StaticJsonDocument<256> jsonResponse;
-
-    if (value < 0 || value > 255)
-    {
-        jsonResponse["error"] = true;
-        jsonResponse["errormessage"] = "Invalid brightness value: " + std::to_string(value) + " - must be between 0 and 255.";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(422, "application/json", output);
-        return;
-    }
+  if (value < 0 || value > 255)
+  {
+    char errorMsg[80];
+    snprintf(errorMsg,
+             sizeof(errorMsg),
+             "Invalid brightness value: %d - must be between 0 and 255.",
+             value);
+    sendJsonError(request, 422, errorMsg);
+    return;
+  }
 
     // If turning off, save current brightness first
     if (value == 0 && Screen.getCurrentBrightness() > 0)
@@ -146,186 +149,258 @@ void handleSetBrightness(AsyncWebServerRequest *request)
 
     sendMinimalInfo();
 
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Brightness set successfully";
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+    sendJsonSuccess(request, "Brightness set successfully");
 }
 
 void handleGetData(AsyncWebServerRequest *request)
 {
-    try
-    {
-        AsyncResponseStream *response = request->beginResponseStream("application/octet-stream");
+  try
+  {
+    AsyncResponseStream *response = request->beginResponseStream("application/octet-stream");
 
-        int currentpos_src = 0;
-        for (int row = 0; row < ROWS; row++)
-        {
-            for (int col = 0; col < COLS; col++)
-            {
-                response->print(Screen.getRenderBuffer()[currentpos_src]);
-                currentpos_src += 1;
-            }
-        }
-
-        request->send(response);
-    }
-    catch (const std::exception &e)
+    uint8_t *buffer = Screen.getRenderBuffer();
+    for (int i = 0; i < TOTAL_PIXELS; i++)
     {
-        StaticJsonDocument<256> jsonResponse;
-        jsonResponse["error"] = true;
-        jsonResponse["errormessage"] = e.what();
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(500, "application/json", output);
+      response->write(buffer[i]);
     }
+
+    request->send(response);
+  }
+  catch (const std::exception &e)
+  {
+    sendJsonError(request, 500, e.what());
+  }
 }
 
 void handleGetInfo(AsyncWebServerRequest *request)
 {
-    DynamicJsonDocument jsonDocument(6144);
-    jsonDocument["rows"] = ROWS;
-    jsonDocument["cols"] = COLS;
-    jsonDocument["status"] = currentStatus;
-    jsonDocument["plugin"] = pluginManager.getActivePlugin()->getId();
-    jsonDocument["rotation"] = Screen.currentRotation;
-    jsonDocument["brightness"] = Screen.getCurrentBrightness();
-    jsonDocument["scheduleActive"] = Scheduler.isActive;
+  JsonDocument jsonDocument;
+  jsonDocument["rows"] = ROWS;
+  jsonDocument["cols"] = COLS;
+  jsonDocument["status"] = currentStatus;
+  jsonDocument["plugin"] = pluginManager.getActivePlugin()->getId();
+  jsonDocument["rotation"] = Screen.currentRotation;
+  jsonDocument["brightness"] = Screen.getCurrentBrightness();
+  jsonDocument["scheduleActive"] = Scheduler.isActive;
+  jsonDocument["rssi"] = WiFi.RSSI();
+  jsonDocument["uptime"] = millis() / 1000;
+  jsonDocument["freeHeap"] = ESP.getFreeHeap();
+  jsonDocument["ipAddress"] = WiFi.localIP().toString();
+  jsonDocument["macAddress"] = WiFi.macAddress();
 
-    JsonArray scheduleArray = jsonDocument.createNestedArray("schedule");
-    for (const auto &item : Scheduler.schedule)
-    {
-        JsonObject scheduleItem = scheduleArray.createNestedObject();
-        scheduleItem["pluginId"] = item.pluginId;
+  JsonArray scheduleArray = jsonDocument["schedule"].to<JsonArray>();
+  for (const auto &item : Scheduler.schedule)
+  {
+    JsonObject scheduleItem = scheduleArray.add<JsonObject>();
+    scheduleItem["pluginId"] = item.pluginId;
 
-        char startTimeStr[6], endTimeStr[6];
-        sprintf(startTimeStr, "%02d:%02d", item.startTime / 60, item.startTime % 60);
-        sprintf(endTimeStr, "%02d:%02d", item.endTime / 60, item.endTime % 60);
-        scheduleItem["startTime"] = startTimeStr;
-        scheduleItem["endTime"] = endTimeStr;
+    char startTimeStr[6], endTimeStr[6];
+    sprintf(startTimeStr, "%02d:%02d", item.startTime / 60, item.startTime % 60);
+    sprintf(endTimeStr, "%02d:%02d", item.endTime / 60, item.endTime % 60);
+    scheduleItem["startTime"] = startTimeStr;
+    scheduleItem["endTime"] = endTimeStr;
 
-        scheduleItem["brightness"] = item.brightness;
-    }
+    scheduleItem["brightness"] = item.brightness;
+  }
 
-    JsonArray plugins = jsonDocument.createNestedArray("plugins");
+  JsonArray plugins = jsonDocument["plugins"].to<JsonArray>();
 
-    std::vector<Plugin *> &allPlugins = pluginManager.getAllPlugins();
+  std::vector<Plugin *> &allPlugins = pluginManager.getAllPlugins();
 
-    for (Plugin *plugin : allPlugins)
-    {
-        JsonObject object = plugins.createNestedObject();
-        object["id"] = plugin->getId();
-        object["name"] = plugin->getName();
-    }
+  for (Plugin *plugin : allPlugins)
+  {
+    JsonObject object = plugins.add<JsonObject>();
+    object["id"] = plugin->getId();
+    object["name"] = plugin->getName();
+  }
 
-    String output;
-    serializeJson(jsonDocument, output);
-    jsonDocument.clear();
+  String output;
+  serializeJson(jsonDocument, output);
+  jsonDocument.clear();
 
-    request->send(200, "application/json", output);
+  request->send(200, "application/json", output);
 }
 
 void handleSetSchedule(AsyncWebServerRequest *request, const String& body)
 {
-    bool scheduleIsSet = Scheduler.setScheduleByJSONString(body);
+  bool scheduleIsSet = Scheduler.setScheduleByJSONString(body);
 
-    StaticJsonDocument<256> jsonResponse;
-    if (!scheduleIsSet)
-    {
-        jsonResponse["error"] = true;
-        jsonResponse["message"] = "Schedule cannot be set. Invalid JSON format.";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(400, "application/json", output);
-        return;
-    }
+  if (!scheduleIsSet)
+  {
+    sendJsonError(request, 400, "Schedule cannot be set. Invalid JSON format.");
+    return;
+  }
 
-    Scheduler.start();
-    sendInfo();
+  Scheduler.start();
+  sendInfo();
 
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Schedule updated";
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+  sendJsonSuccess(request, "Schedule updated");
 }
 
 void handleClearSchedule(AsyncWebServerRequest *request)
 {
-    Scheduler.clearSchedule(true);
-    sendInfo();
+  Scheduler.clearSchedule(true);
+  sendInfo();
 
-    StaticJsonDocument<256> jsonResponse;
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Schedule cleared";
-
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+  sendJsonSuccess(request, "Schedule cleared");
 }
 
 void handleStopSchedule(AsyncWebServerRequest *request)
 {
-    StaticJsonDocument<256> jsonResponse;
-    if (!Scheduler.schedule.empty())
-    {
-        Scheduler.stop();
-        sendInfo();
-
-        jsonResponse["status"] = "success";
-        jsonResponse["message"] = "Schedule stopped";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(200, "application/json", output);
-    }
-    else
-    {
-        jsonResponse["error"] = true;
-        jsonResponse["message"] = "No schedule found";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(404, "application/json", output);
-    }
+  if (!Scheduler.schedule.empty())
+  {
+    Scheduler.stop();
+    sendInfo();
+    sendJsonSuccess(request, "Schedule stopped");
+  }
+  else
+  {
+    sendJsonError(request, 404, "No schedule found");
+  }
 }
 
 void handleStartSchedule(AsyncWebServerRequest *request)
 {
-    StaticJsonDocument<256> jsonResponse;
-    if (!Scheduler.schedule.empty())
-    {
-        Scheduler.start();
-        sendInfo();
-
-        jsonResponse["status"] = "success";
-        jsonResponse["message"] = "Schedule started";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(200, "application/json", output);
-    }
-    else
-    {
-        jsonResponse["error"] = true;
-        jsonResponse["message"] = "No schedule found";
-        String output;
-        serializeJson(jsonResponse, output);
-        request->send(404, "application/json", output);
-    }
+  if (!Scheduler.schedule.empty())
+  {
+    Scheduler.start();
+    sendInfo();
+    sendJsonSuccess(request, "Schedule started");
+  }
+  else
+  {
+    sendJsonError(request, 404, "No schedule found");
+  }
 }
 
 void handleClearStorage(AsyncWebServerRequest *request)
 {
 #ifdef ENABLE_STORAGE
-    storage.begin("led-wall", false);
-    storage.clear();
-    storage.end();
+  storage.begin("led-wall", false);
+  storage.clear();
+  storage.end();
 
-    StaticJsonDocument<256> jsonResponse;
-    jsonResponse["status"] = "success";
-    jsonResponse["message"] = "Storage cleared";
-
-    String output;
-    serializeJson(jsonResponse, output);
-    request->send(200, "application/json", output);
+  sendJsonSuccess(request, "Storage cleared");
 #endif
+}
+
+void handleGetConfig(AsyncWebServerRequest *request)
+{
+  Serial.println("[WebHandler] GET /api/config");
+  try {
+    String json = config.toJson();
+    Serial.println("[WebHandler] ============================================");
+    Serial.println("[WebHandler] Current Configuration:");
+    Serial.print("[WebHandler] Weather Location: ");
+    Serial.println(config.getWeatherLocation());
+    Serial.print("[WebHandler] NTP Server: ");
+    Serial.println(config.getNtpServer());
+    Serial.print("[WebHandler] Timezone: ");
+    Serial.println(config.getTzInfo());
+    Serial.print("[WebHandler] Auto-Start Schedule: ");
+    Serial.println(config.getAutoStartSchedule() ? "enabled" : "disabled");
+    Serial.println("[WebHandler] ============================================");
+    request->send(200, "application/json", json);
+  } catch (...) {
+    Serial.println("[WebHandler] ERROR: Exception in handleGetConfig");
+    sendJsonError(request, 500, "Error reading configuration");
+  }
+}
+
+void handleSetConfigBody(AsyncWebServerRequest *request,
+                         uint8_t *data,
+                         size_t len,
+                         size_t index,
+                         size_t total)
+{
+  if (index == 0)
+  {
+    request->_tempObject = new String();
+  }
+
+  String *body = static_cast<String *>(request->_tempObject);
+  if (!body)
+  {
+    sendJsonError(request, 500, "Internal buffer error");
+    return;
+  }
+
+  if (index == 0)
+  {
+    body->reserve(total);
+  }
+
+  body->concat(reinterpret_cast<char *>(data), len);
+
+  if (index + len != total)
+  {
+    return;
+  }
+
+  Serial.println("[WebHandler] POST /api/config (body)");
+  Serial.print("[WebHandler] Received JSON: ");
+  Serial.println(*body);
+
+  try
+  {
+    if (body->length() == 0)
+    {
+      Serial.println("[WebHandler] ERROR: No JSON body");
+      sendJsonError(request, 400, "No JSON body provided");
+    }
+    else if (config.fromJson(*body))
+    {
+      Serial.println("[WebHandler] JSON parsed successfully");
+      config.save();
+      Serial.println("[WebHandler] ============================================");
+      Serial.println("[WebHandler] Configuration Updated:");
+      Serial.print("[WebHandler] Weather Location: ");
+      Serial.println(config.getWeatherLocation());
+      Serial.print("[WebHandler] NTP Server: ");
+      Serial.println(config.getNtpServer());
+      Serial.print("[WebHandler] Timezone: ");
+      Serial.println(config.getTzInfo());
+      Serial.print("[WebHandler] Auto-Start Schedule: ");
+      Serial.println(config.getAutoStartSchedule() ? "enabled" : "disabled");
+      Serial.println("[WebHandler] ============================================");
+      sendJsonSuccess(request, "Configuration saved successfully");
+    }
+    else
+    {
+      Serial.println("[WebHandler] ERROR: Invalid JSON format");
+      sendJsonError(request, 400, "Invalid JSON format");
+    }
+  }
+  catch (...)
+  {
+    Serial.println("[WebHandler] ERROR: Exception in handleSetConfigBody");
+    sendJsonError(request, 500, "Error saving configuration");
+  }
+
+  delete body;
+  request->_tempObject = nullptr;
+}
+
+void handleResetConfig(AsyncWebServerRequest *request)
+{
+  Serial.println("[WebHandler] POST /api/config/reset");
+  try {
+    config.setDefaults();
+    config.save();
+    Serial.println("[WebHandler] ============================================");
+    Serial.println("[WebHandler] Configuration Reset to Defaults:");
+    Serial.print("[WebHandler] Weather Location: ");
+    Serial.println(config.getWeatherLocation());
+    Serial.print("[WebHandler] NTP Server: ");
+    Serial.println(config.getNtpServer());
+    Serial.print("[WebHandler] Timezone: ");
+    Serial.println(config.getTzInfo());
+    Serial.print("[WebHandler] Auto-Start Schedule: ");
+    Serial.println(config.getAutoStartSchedule() ? "enabled" : "disabled");
+    Serial.println("[WebHandler] ============================================");
+    sendJsonSuccess(request, "Configuration reset to defaults");
+  } catch (...) {
+    Serial.println("[WebHandler] ERROR: Exception in handleResetConfig");
+    sendJsonError(request, 500, "Error resetting configuration");
+  }
 }

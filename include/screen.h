@@ -1,20 +1,19 @@
 #pragma once
 
+#include "PluginManager.h"
+#include "constants.h"
+#include "signs.h"
+#include "storage.h"
 #include <Arduino.h>
 #include <vector>
-#include "PluginManager.h"
-#include "signs.h"
-#include "constants.h"
-#include "storage.h"
 class Screen_
 {
 private:
   Screen_() = default;
 
-  uint8_t brightness_ = 255;
+  uint8_t brightness_ = MAX_BRIGHTNESS;
   uint8_t renderBuffer_[ROWS * COLS];
   uint8_t rotatedRenderBuffer_[ROWS * COLS];
-  uint8_t cache_[ROWS * COLS];
   uint8_t positions[ROWS * COLS] = {
       0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
       0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -34,7 +33,7 @@ private:
       0xef, 0xee, 0xed, 0xec, 0xeb, 0xea, 0xe9, 0xe8, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff};
 
   static void onScreenTimer();
-  ICACHE_RAM_ATTR void _render();
+  void _render();
   void rotate();
   uint8_t *getRotatedRenderBuffer();
 
@@ -56,28 +55,48 @@ public:
   void clear();
   void clearRect(int x, int y, int width, int height);
 
-  void setPixel(uint8_t x, uint8_t y, uint8_t value, uint8_t brightness = 255);
-  void setPixelAtIndex(uint8_t index, uint8_t value, uint8_t brightness = 255);
+  void setPixel(uint8_t x, uint8_t y, uint8_t value, uint8_t brightness = MAX_BRIGHTNESS);
+  void setPixelAtIndex(uint8_t index, uint8_t value, uint8_t brightness = MAX_BRIGHTNESS);
 
   void setup();
 
   void loadFromStorage();
   void persist();
-  bool isCacheEmpty() const;
-  void cacheCurrent();
-  void restoreCache();
   uint8_t getBufferIndex(int index);
 
-  void drawLine(int x1, int y1, int x2, int y2, int ledStatus, uint8_t brightness = 255);
-  void drawRectangle(int x, int y, int width, int height, bool fill, int ledStatus, uint8_t brightness = 255);
-  void drawCharacter(int x, int y, std::vector<int> bits, int bitCount, uint8_t brightness = 255);
-  void drawNumbers(int x, int y, std::vector<int> numbers, uint8_t brightness = 255);
-  void drawBigNumbers(int x, int y, std::vector<int> numbers, uint8_t brightness = 255);
-  void drawWeather(int x, int y, int weather, uint8_t brightness = 255);
-  std::vector<int> readBytes(std::vector<int> bytes);
+  void drawLine(int x1, int y1, int x2, int y2, int ledStatus, uint8_t brightness = MAX_BRIGHTNESS);
+  void drawRectangle(int x,
+                     int y,
+                     int width,
+                     int height,
+                     bool fill,
+                     int ledStatus,
+                     uint8_t brightness = MAX_BRIGHTNESS);
+  void drawCharacter(int x,
+                     int y,
+                     const std::vector<int> &bits,
+                     int bitCount,
+                     uint8_t brightness = MAX_BRIGHTNESS);
+  void drawNumbers(int x,
+                   int y,
+                   const std::vector<int> &numbers,
+                   uint8_t brightness = MAX_BRIGHTNESS);
+  void drawBigNumbers(int x,
+                      int y,
+                      const std::vector<int> &numbers,
+                      uint8_t brightness = MAX_BRIGHTNESS);
+  void drawWeather(int x, int y, int weather, uint8_t brightness = MAX_BRIGHTNESS);
+  std::vector<int> readBytes(const std::vector<int> &bytes);
 
-  void scrollText(std::string text, int delayTime = 30, uint8_t brightness = 255, uint8_t fontid = 0);
-  void scrollGraph(std::vector<int> graph = {}, int miny = 0, int maxy = 15, int delayTime = 60, uint8_t brightness = 255);
+  void scrollText(const std::string &text,
+                  int delayTime = 30,
+                  uint8_t brightness = MAX_BRIGHTNESS,
+                  uint8_t fontid = 0);
+  void scrollGraph(const std::vector<int> &graph = {},
+                   int miny = 0,
+                   int maxy = 15,
+                   int delayTime = 60,
+                   uint8_t brightness = MAX_BRIGHTNESS);
 };
 
 extern Screen_ &Screen;

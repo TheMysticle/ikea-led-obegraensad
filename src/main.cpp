@@ -1,11 +1,12 @@
 #include <Arduino.h>
-#include <SPI.h>
 #include <BfButton.h>
+#include <SPI.h>
 
-#ifdef ESP82666
+#ifdef ESP8266
 /* Fix duplicate defs of HTTP_GET, HTTP_POST, ... in ESPAsyncWebServer.h */
 #define WEBSERVER_H
 #endif
+
 #include <WiFiManager.h>
 
 #ifdef ESP32
@@ -16,19 +17,33 @@
 #endif
 
 #include "PluginManager.h"
+#include "config.h"
 #include "scheduler.h"
 
+#include "plugins/ArtNet.h"
+#include "plugins/Blob.h"
 #include "plugins/BreakoutPlugin.h"
+#include "plugins/BubblesPlugin.h"
+#include "plugins/CheckerboardPlugin.h"
 #include "plugins/CirclePlugin.h"
+#include "plugins/CometPlugin.h"
+#include "plugins/DDPPlugin.h"
 #include "plugins/DrawPlugin.h"
+#include "plugins/FirefliesPlugin.h"
 #include "plugins/FireworkPlugin.h"
 #include "plugins/GameOfLifePlugin.h"
 #include "plugins/LinesPlugin.h"
 #include "plugins/OffPlugin.h"
-#include "plugins/RainPlugin.h"
-#include "plugins/SnakePlugin.h"
-#include "plugins/StarsPlugin.h"
+#include "plugins/MatrixRainPlugin.h"
+#include "plugins/MeteorShowerPlugin.h"
 #include "plugins/PongClockPlugin.h"
+#include "plugins/RadarPlugin.h"
+#include "plugins/RainPlugin.h"
+#include "plugins/ScanlinesPlugin.h"
+#include "plugins/SnakePlugin.h"
+#include "plugins/SparkleFieldPlugin.h"
+#include "plugins/SpiralPlugin.h"
+#include "plugins/StarsPlugin.h"
 #include "plugins/TickingClockPlugin.h"
 #include "plugins/DDPPlugin.h"
 #include "plugins/TixyPlugin.h"
@@ -36,21 +51,22 @@
 #include "plugins/TetrisPlugin.h"
 #include "plugins/FroggerPlugin.h"
 #include "plugins/MazePlugin.h"
+#include "plugins/WaveBarsPlugin.h"
+#include "plugins/WavePlugin.h"
 
 #ifdef ENABLE_SERVER
 #include "plugins/AnimationPlugin.h"
 #include "plugins/BigClockPlugin.h"
 #include "plugins/ClockPlugin.h"
 #include "plugins/WeatherPlugin.h"
-#include "plugins/AnimationPlugin.h"
 #endif
 
 #include "asyncwebserver.h"
+#include "messages.h"
 #include "ota.h"
 #include "screen.h"
 #include "secrets.h"
 #include "websocket.h"
-#include "messages.h"
 
 // --- ADDITIONS FOR ESPALEXA ---
 #define ESPALEXA_ASYNC // Important: Define this before including Espalexa.h!
@@ -77,19 +93,24 @@ unsigned long previousMillis = 0;
 unsigned long interval = 30000;
 
 PluginManager pluginManager;
-SYSTEM_STATUS currentStatus = NONE;
+#ifdef ESP32
+DRAM_ATTR volatile SYSTEM_STATUS currentStatus = NONE;
+#else
+volatile SYSTEM_STATUS currentStatus = NONE;
+#endif
 WiFiManager wifiManager;
 
 unsigned long lastConnectionAttempt = 0;
 const unsigned long connectionInterval = 10000;
+unsigned long reconnectionBackoff = 5000;            // Start with 5 seconds
+const unsigned long maxReconnectionBackoff = 300000; // Max 5 minutes
+uint8_t reconnectionAttempts = 0;
 
 void connectToWiFi()
 {
   // if a WiFi setup AP was started, reboot is required to clear routes
   bool wifiWebServerStarted = false;
-  wifiManager.setWebServerCallback(
-      [&wifiWebServerStarted]()
-      { wifiWebServerStarted = true; });
+  wifiManager.setWebServerCallback([&wifiWebServerStarted]() { wifiWebServerStarted = true; });
 
   wifiManager.setHostname(WIFI_HOSTNAME);
 
@@ -253,12 +274,15 @@ void baseSetup()
   Screen.setup();
 #endif
 
+  // Initialize configuration system (always safe)
+  config.begin();
+
 // server
 #ifdef ENABLE_SERVER
   connectToWiFi();
 
-  // set time server
-  configTzTime(TZ_INFO, NTP_SERVER);
+  // set time server using config values
+  configTzTime(config.getTzInfo().c_str(), config.getNtpServer().c_str());
 
   initOTA(server);
   initWebsocketServer(server);
@@ -271,6 +295,7 @@ void baseSetup()
   // --- END ADDITIONS FOR ESPALEXA ---
 
 #endif
+
   pluginManager.addPlugin(new DrawPlugin());
   pluginManager.addPlugin(new BreakoutPlugin());
   pluginManager.addPlugin(new SnakePlugin());
@@ -279,9 +304,22 @@ void baseSetup()
   pluginManager.addPlugin(new LinesPlugin());
   pluginManager.addPlugin(new CirclePlugin());
   pluginManager.addPlugin(new RainPlugin());
+  pluginManager.addPlugin(new MatrixRainPlugin());
   pluginManager.addPlugin(new FireworkPlugin());
   pluginManager.addPlugin(new OffPlugin());
   pluginManager.addPlugin(new TixyPlugin());
+  pluginManager.addPlugin(new BlobPlugin());
+  pluginManager.addPlugin(new SpiralPlugin());
+  pluginManager.addPlugin(new WavePlugin());
+  pluginManager.addPlugin(new CheckerboardPlugin());
+  pluginManager.addPlugin(new RadarPlugin());
+  pluginManager.addPlugin(new BubblesPlugin());
+  pluginManager.addPlugin(new CometPlugin());
+  pluginManager.addPlugin(new FirefliesPlugin());
+  pluginManager.addPlugin(new MeteorShowerPlugin());
+  pluginManager.addPlugin(new ScanlinesPlugin());
+  pluginManager.addPlugin(new SparkleFieldPlugin());
+  pluginManager.addPlugin(new WaveBarsPlugin());
 
 #ifdef ENABLE_SERVER
   pluginManager.addPlugin(new BigClockPlugin());
@@ -295,8 +333,10 @@ void baseSetup()
   pluginManager.addPlugin(new TetrisPlugin());
   pluginManager.addPlugin(new FroggerPlugin());
   pluginManager.addPlugin(new MazePlugin());
+  pluginManager.addPlugin(new ArtNetPlugin());
 #endif
 
+  Screen.clear();
   pluginManager.init();
   Scheduler.init();
 
@@ -322,7 +362,7 @@ void screenDrawingTask(void *parameter)
   for (;;)
   {
     pluginManager.runActivePlugin();
-    vTaskDelay(10);
+    vTaskDelay(1);
   }
 }
 
@@ -355,11 +395,10 @@ void setup()
       1,
       &screenDrawingTaskHandle,
       0);
-      remoteUdp.begin(4211); // Pick a port for plugin switching
+  remoteUdp.begin(4211); // Pick a port for plugin switching
 }
 #endif
 #ifdef ESP8266
-#include <Scheduler.h>
 void screenDrawingTask()
 {
   Screen.setup();
@@ -370,15 +409,19 @@ void screenDrawingTask()
 void setup()
 {
   baseSetup();
-  Scheduler.start(&screenDrawingTask);
+  Scheduler.start();
 }
 #endif
 
 void loop()
 {
   static uint8_t taskCounter = 0;
-  const unsigned long currentMillis = millis();
+
   btn.read();
+
+#ifdef ENABLE_SERVER
+  ElegantOTA.loop();
+#endif
 
 #if !defined(ESP32) && !defined(ESP8266)
   pluginManager.runActivePlugin();
@@ -388,28 +431,47 @@ void loop()
   {
     if (currentStatus == NONE) Scheduler.update();
 
-    if (Messages.hasMessages())
+    if ((taskCounter & 0x03) == 0)
     {
-      currentStatus = SCROLLING;
-      Messages.scroll();
-      if (!Messages.hasMessages() && Messages.wasScrolling())
+      if (Messages.hasMessages())
+      {
+        currentStatus = SCROLLING;
+        Messages.scroll();
+        if (!Messages.hasMessages() && Messages.wasScrolling())
+        {
+          currentStatus = NONE;
+          Messages.clearScrollingFlag();
+        }
+      }
+      else if (Messages.wasScrolling())
       {
         currentStatus = NONE;
         Messages.clearScrollingFlag();
       }
     }
-    else if (Messages.wasScrolling())
-    {
-      currentStatus = NONE;
-      Messages.clearScrollingFlag();
-    }
   }
 
-  if ((taskCounter % 16) == 0)
+  // Check WiFi less frequently with exponential backoff
+  if (WiFi.status() != WL_CONNECTED)
   {
-    if (WiFi.status() != WL_CONNECTED)
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastConnectionAttempt >= reconnectionBackoff)
     {
+      Serial.println("WiFi disconnected, attempting reconnection...");
       connectToWiFi();
+
+      // Exponential backoff: double the wait time, up to max
+      reconnectionAttempts++;
+      reconnectionBackoff = min(reconnectionBackoff * 2, maxReconnectionBackoff);
+    }
+  }
+  else
+  {
+    if (reconnectionAttempts > 0)
+    {
+      Serial.println("WiFi reconnected successfully");
+      reconnectionAttempts = 0;
+      reconnectionBackoff = 5000;
     }
   }
 
@@ -425,5 +487,9 @@ void loop()
   ElegantOTA.loop();
 #endif
   checkForRemotePluginSwitch();
-  delay(10);
+#ifdef ESP32
+  vTaskDelay(1);
+#else
+  delay(1);
+#endif
 }

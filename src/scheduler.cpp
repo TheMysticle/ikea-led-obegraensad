@@ -31,6 +31,11 @@ void PluginScheduler::clearSchedule(bool emptyStorage)
     storage.putBool("scheduleactive", false);
     storage.end();
   }
+#else
+  if (emptyStorage)
+  {
+    schedule.clear();
+  }
 #endif
 }
 
@@ -41,11 +46,7 @@ void PluginScheduler::start()
     isActive = true;
     isBrightnessOverridden = false; // Reset override when starting
     currentScheduleIndex = -1;     // Force re-evaluation on next update
-#ifdef ENABLE_STORAGE
-    storage.begin("led-wall", false);
-    storage.putBool("scheduleactive", true);
-    storage.end();
-#endif
+    requestPersist();
     update(); // Run an initial update to set the state immediately
   }
 }
@@ -53,18 +54,38 @@ void PluginScheduler::start()
 void PluginScheduler::stop()
 {
   isActive = false;
-#ifdef ENABLE_STORAGE
-  storage.begin("led-wall", false);
-  storage.putBool("scheduleactive", false);
-  storage.end();
-#endif
+  requestPersist();
+
   // Optional: Revert to the default persisted plugin when scheduler stops
   pluginManager.activatePersistedPlugin();
   sendMinimalInfo();
 }
 
+void PluginScheduler::requestPersist()
+{
+  needsPersist = true;
+  lastPersistRequest = millis();
+}
+
+void PluginScheduler::checkAndPersist()
+{
+#ifdef ENABLE_STORAGE
+  if (needsPersist && (millis() - lastPersistRequest >= PERSIST_DELAY_MS))
+  {
+    storage.begin("led-wall", false);
+    storage.putBool("scheduleactive", isActive);
+    storage.end();
+    needsPersist = false;
+  }
+#else
+  needsPersist = false;
+#endif
+}
+
 void PluginScheduler::update()
 {
+  checkAndPersist();
+
   if (!isActive || schedule.empty())
   {
     return;
@@ -155,7 +176,7 @@ bool PluginScheduler::setScheduleByJSONString(String scheduleJson)
     return false;
   }
 
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, scheduleJson);
 
   if (error)
@@ -164,20 +185,21 @@ bool PluginScheduler::setScheduleByJSONString(String scheduleJson)
     return false;
   }
 
+  clearSchedule(true);
+
 #ifdef ENABLE_STORAGE
-  storage.begin("led-wall", false);
+  storage.begin("led-wall");
   storage.putString("schedule", scheduleJson);
   storage.end();
 #endif
 
   clearSchedule(false); // Clear current schedule without touching storage
 
-  JsonArray schedule = doc.as<JsonArray>();
-  for (JsonObject item : schedule)
+  for (const auto &item : doc.as<JsonArray>())
   {
     if (!item.containsKey("pluginId") || !item.containsKey("startTime") || !item.containsKey("endTime"))
     {
-      return false;
+      continue;
     }
 
     int pluginId = item["pluginId"].as<int>();
@@ -194,7 +216,6 @@ bool PluginScheduler::setScheduleByJSONString(String scheduleJson)
 
     addItem(pluginId, startTimeInMinutes, endTimeInMinutes, brightness);
   }
-
   return true;
 }
 

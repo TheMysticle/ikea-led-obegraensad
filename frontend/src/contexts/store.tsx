@@ -1,35 +1,22 @@
-import { createEventSignal } from '@solid-primitives/event-listener';
-import {
-  createReconnectingWS,
-  createWSState,
-} from '@solid-primitives/websocket';
-import {
-  batch,
-  createContext,
-  createEffect,
-  ParentComponent,
-  Show,
-  useContext,
-} from 'solid-js';
-import { createStore } from 'solid-js/store';
-import { ScheduleItem, Store, StoreActions, SYSTEM_STATUS } from '../types';
-import { ToastProvider } from './toast';
+import { createEventSignal } from "@solid-primitives/event-listener";
+import { createReconnectingWS, createWSState } from "@solid-primitives/websocket";
+import { batch, createContext, createEffect, type JSX, useContext } from "solid-js";
+import { createStore } from "solid-js/store";
+
+import { type ScheduleItem, type Store, type StoreActions, SYSTEM_STATUS } from "../types";
+import { ToastProvider } from "./toast";
 
 const ws = createReconnectingWS(
   `${
     import.meta.env.PROD
-      ? `ws://${window.location.host}/`
+      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`
       : import.meta.env.VITE_WS_URL
   }ws`,
 );
+
 const wsState = createWSState(ws);
 
-const connectionStatus = [
-  'Connecting',
-  'Connected',
-  'Disconnecting',
-  'Disconnected',
-];
+const connectionStatus = ["Connecting", "Connected", "Disconnecting", "Disconnected"];
 
 const [mainStore, setStore] = createStore<Store>({
   isActiveScheduler: false,
@@ -38,6 +25,8 @@ const [mainStore, setStore] = createStore<Store>({
   plugins: [],
   plugin: 1,
   brightness: 0,
+  artnetUniverse: 1,
+  GOLDelay: 150,
   indexMatrix: [...new Array(256)].map((_, i) => i),
   leds: [...new Array(256)].fill(0),
   systemStatus: SYSTEM_STATUS.NONE,
@@ -47,17 +36,18 @@ const [mainStore, setStore] = createStore<Store>({
 });
 
 const actions: StoreActions = {
-  setIsActiveScheduler: (isActive) => setStore('isActiveScheduler', isActive),
-  setActiveScheduleIndex: (index) => setStore('activeScheduleIndex', index), // Add this
-  setRotation: (rotation) => setStore('rotation', rotation),
-  setPlugins: (plugins) => setStore('plugins', plugins),
-  setPlugin: (plugin) => setStore('plugin', plugin),
-  setBrightness: (brightness) => setStore('brightness', brightness),
-  setIndexMatrix: (indexMatrix) => setStore('indexMatrix', indexMatrix),
-  setLeds: (leds) => setStore('leds', leds),
-  setSystemStatus: (systemStatus: SYSTEM_STATUS) =>
-    setStore('systemStatus', systemStatus),
-  setSchedule: (items: ScheduleItem[]) => setStore('schedule', items),
+  setIsActiveScheduler: (isActive) => setStore("isActiveScheduler", isActive),
+  setActiveScheduleIndex: (index) => setStore("activeScheduleIndex", index), // Add this
+  setRotation: (rotation) => setStore("rotation", rotation),
+  setPlugins: (plugins) => setStore("plugins", plugins),
+  setPlugin: (plugin) => setStore("plugin", plugin),
+  setBrightness: (brightness) => setStore("brightness", brightness),
+  setArtnetUniverse: (artnetUniverse) => setStore("artnetUniverse", artnetUniverse),
+  setGOLDelay: (GOLDelay) => setStore("GOLDelay", GOLDelay),
+  setIndexMatrix: (indexMatrix) => setStore("indexMatrix", indexMatrix),
+  setLeds: (leds) => setStore("leds", leds),
+  setSystemStatus: (systemStatus: SYSTEM_STATUS) => setStore("systemStatus", systemStatus),
+  setSchedule: (items: ScheduleItem[]) => setStore("schedule", items),
   send: ws.send,
 };
 
@@ -65,71 +55,113 @@ const store: [Store, StoreActions] = [mainStore, actions] as const;
 
 const StoreContext = createContext<[Store, StoreActions]>(store);
 
-export const StoreProvider: ParentComponent = (props) => {
-  const messageEvent = createEventSignal<{ message: MessageEvent }>(
-    ws,
-    'message',
-  );
+const isValidNumber = (value: unknown): value is number =>
+  typeof value === "number" && !Number.isNaN(value);
+
+const isValidBoolean = (value: unknown): value is boolean => typeof value === "boolean";
+
+const isValidArray = (value: unknown): value is unknown[] => Array.isArray(value);
+
+export const StoreProvider = (props?: { value?: Store; children?: JSX.Element }) => {
+  const messageEvent = createEventSignal<{ message: MessageEvent }>(ws, "message");
+  const errorEvent = createEventSignal<{ error: Event }>(ws, "error");
 
   createEffect(() => {
-    const json = JSON.parse(messageEvent()?.data || '{}');
+    const state = wsState();
 
-    switch (json.event) {
-      case 'minimal-info':
-        batch(() => { // Use batch to prevent multiple re-renders
-            actions.setSystemStatus(
-              Object.values(SYSTEM_STATUS)[json.status as number],
-            );
-            actions.setRotation(json.rotation);
-            actions.setBrightness(json.brightness);
-            actions.setPlugin(json.plugin as number);
-            actions.setIsActiveScheduler(json.scheduleActive);
-            if (json.activeScheduleIndex !== undefined) {
+    if (state >= 0 && state < connectionStatus.length) {
+      setStore("connectionStatus", connectionStatus[state]);
+    }
+
+    if (state === WebSocket.CLOSED || state === WebSocket.CLOSING) {
+      console.warn("WebSocket disconnected. Will attempt to reconnect...");
+    }
+  });
+
+  createEffect(() => {
+    const error = errorEvent();
+    if (error) {
+      console.error("WebSocket error occurred:", error);
+    }
+  });
+
+  createEffect(() => {
+    try {
+      const json = JSON.parse(messageEvent()?.data || "{}");
+
+      if (!json.event || typeof json.event !== "string") {
+        return;
+      }
+
+      switch (json.event) {
+        case "minimal-info":
+          batch(() => {
+            if (isValidNumber(json.status) && json.status >= 0 && json.status < Object.values(SYSTEM_STATUS).length) {
+              actions.setSystemStatus(Object.values(SYSTEM_STATUS)[json.status]);
+            }
+            if (isValidNumber(json.rotation)) actions.setRotation(json.rotation);
+            if (isValidNumber(json.brightness)) actions.setBrightness(json.brightness);
+            if (isValidNumber(json.plugin)) actions.setPlugin(json.plugin);
+            if (isValidBoolean(json.scheduleActive)) actions.setIsActiveScheduler(json.scheduleActive);
+            if (isValidNumber(json.activeScheduleIndex)) actions.setActiveScheduleIndex(json.activeScheduleIndex);
+          });
+          break;
+        case "info":
+          batch(() => {
+            if (
+              isValidNumber(json.status) &&
+              json.status >= 0 &&
+              json.status < Object.values(SYSTEM_STATUS).length
+            ) {
+              actions.setSystemStatus(Object.values(SYSTEM_STATUS)[json.status]);
+            }
+
+            if (isValidNumber(json.rotation)) {
+              actions.setRotation(json.rotation);
+            }
+
+            if (isValidNumber(json.brightness)) {
+              actions.setBrightness(json.brightness);
+            }
+
+            if (isValidBoolean(json.scheduleActive)) {
+              actions.setIsActiveScheduler(json.scheduleActive);
+            }
+
+            if (isValidArray(json.schedule)) {
+              actions.setSchedule(json.schedule as ScheduleItem[]);
+            }
+
+            if (isValidNumber(json.activeScheduleIndex)) {
               actions.setActiveScheduleIndex(json.activeScheduleIndex);
             }
-        });
-        break;
-      case 'info':
-        batch(() => {
-          actions.setSystemStatus(
-            Object.values(SYSTEM_STATUS)[json.status as number],
-          );
-          actions.setRotation(json.rotation);
-          actions.setBrightness(json.brightness);
-          actions.setIsActiveScheduler(json.scheduleActive);
 
-          if (json.schedule) {
-            actions.setSchedule(json.schedule);
-          }
-          if (json.activeScheduleIndex !== undefined) {
-            actions.setActiveScheduleIndex(json.activeScheduleIndex);
-          }
+            if (!mainStore.plugins.length && isValidArray(json.plugins)) {
+              actions.setPlugins(json.plugins);
+            }
 
-          if (!mainStore.plugins.length) {
-            actions.setPlugins(json.plugins);
-          }
+            if (isValidNumber(json.plugin)) {
+              actions.setPlugin(json.plugin);
+            }
 
-          if (json.plugin) {
-            actions.setPlugin(json.plugin as number);
-          }
+            if (mainStore.plugin === 1) {
+              actions.setIndexMatrix([...new Array(256)].map((_, i) => i));
+            }
 
-          if (mainStore.plugin === 1) {
-            actions.setIndexMatrix([...new Array(256)].map((_, i) => i));
-          }
-
-          if (json.data) {
-            actions.setLeds(json.data);
-          }
-        });
-        break;
+            if (isValidArray(json.data)) {
+              actions.setLeds(json.data as number[]);
+            }
+          });
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to parse WebSocket message:", error);
     }
   });
 
   return (
     <ToastProvider>
-      <StoreContext.Provider value={store}>
-        {props.children}
-      </StoreContext.Provider>
+      <StoreContext.Provider value={store}>{props?.children}</StoreContext.Provider>
     </ToastProvider>
   );
 };

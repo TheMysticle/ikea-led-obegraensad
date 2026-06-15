@@ -1,14 +1,37 @@
 #include "plugins/WeatherPlugin.h"
+#include "config.h"
 
 // https://github.com/chubin/wttr.in/blob/master/share/translations/en.txt
+#ifdef ESP32
+#include <WiFi.h>
+#endif
 #ifdef ESP8266
+#include <ESP8266WiFi.h>
 WiFiClient wiFiClient;
 #endif
 
 void WeatherPlugin::setup()
 {
-    // loading screen
-    Screen.clear();
+  Screen.clear();
+
+#ifdef ESP32
+  if (secureClient == nullptr)
+  {
+    secureClient = new WiFiClientSecure();
+    secureClient->setInsecure();
+  }
+#endif
+
+  // If we have cached data and it's still fresh (< 30 minutes old), redraw it
+  if (hasCachedData && lastUpdate > 0 && millis() >= lastUpdate &&
+      millis() - lastUpdate < (1000UL * 60 * 30))
+  {
+    Serial.println("Using cached weather data");
+    drawWeather();
+  }
+  else
+  {
+    // Show loading screen - data needs to be fetched
     currentStatus = LOADING;
     Screen.setPixel(4, 7, 1);
     Screen.setPixel(5, 7, 1);
@@ -16,109 +39,197 @@ void WeatherPlugin::setup()
     Screen.setPixel(8, 7, 1);
     Screen.setPixel(10, 7, 1);
     Screen.setPixel(11, 7, 1);
-    this->lastUpdate = millis();
-    this->update();
     currentStatus = NONE;
+
+    // Clear lastUpdate to force immediate fetch on first loop
+    this->lastUpdate = 0;
+  }
 }
 
 void WeatherPlugin::loop()
 {
-    if (millis() >= this->lastUpdate + (1000 * 60 * 30))
-    {
-        this->update();
-        this->lastUpdate = millis();
-        Serial.println("updating weather");
-    };
+  if (this->lastUpdate == 0 || millis() >= this->lastUpdate + (1000 * 60 * 30))
+  {
+    this->update();
+    this->lastUpdate = millis();
+    Serial.println("updating weather");
+  };
 }
 
 void WeatherPlugin::update()
 {
-    String weatherApiString = "https://wttr.in/" + String(WEATHER_LOCATION) + "?format=j2&lang=en";
+  // Check WiFi connection first
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("WiFi not connected, skipping weather update");
+    return;
+  }
+
+  String weatherLocation = config.getWeatherLocation();
+  Serial.print("[WeatherPlugin] Fetching weather for configured city: ");
+  Serial.println(weatherLocation);
+  
+  String weatherApiString = "https://wttr.in/" + weatherLocation + "?format=j2&lang=en";
+  Serial.print("[WeatherPlugin] API request: ");
+  Serial.println(weatherApiString);
+
 #ifdef ESP32
-    http.begin(weatherApiString);
+  if (secureClient != nullptr)
+  {
+    http.begin(*secureClient, weatherApiString);
+  }
+  else
+  {
+    Serial.println("Secure client not initialized!");
+    return;
+  }
 #endif
 #ifdef ESP8266
-    http.begin(wiFiClient, weatherApiString);
+  http.begin(wiFiClient, weatherApiString);
 #endif
 
-    int code = http.GET();
+  http.setTimeout(20000);
 
-    if (code == HTTP_CODE_OK)
+  Serial.println("Sending HTTP GET request...");
+  int code = http.GET();
+  Serial.print("HTTP response code: ");
+  Serial.println(code);
+
+  if (code == HTTP_CODE_OK)
+  {
+    String payload = http.getString();
+    Serial.print("Response size: ");
+    Serial.println(payload.length());
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error)
     {
-        DynamicJsonDocument doc(2048);
-        deserializeJson(doc, http.getString());
-
-        int temperature = round(doc["current_condition"][0]["temp_C"].as<float>());
-        int weatherCode = doc["current_condition"][0]["weatherCode"].as<int>();
-        int weatherIcon = 0;
-        int iconY = 1;
-        int tempY = 10;
-
-        if (std::find(thunderCodes.begin(), thunderCodes.end(), weatherCode) != thunderCodes.end())
-        {
-            weatherIcon = 1;
-        }
-        else if (std::find(rainCodes.begin(), rainCodes.end(), weatherCode) != rainCodes.end())
-        {
-            weatherIcon = 4;
-        }
-        else if (std::find(snowCodes.begin(), snowCodes.end(), weatherCode) != snowCodes.end())
-        {
-            weatherIcon = 5;
-        }
-        else if (std::find(fogCodes.begin(), fogCodes.end(), weatherCode) != fogCodes.end())
-        {
-            weatherIcon = 6;
-            iconY = 2;
-        }
-        else if (std::find(clearCodes.begin(), clearCodes.end(), weatherCode) != clearCodes.end())
-        {
-            weatherIcon = 2;
-            iconY = 1;
-            tempY = 9;
-        }
-        else if (std::find(cloudyCodes.begin(), cloudyCodes.end(), weatherCode) != cloudyCodes.end())
-        {
-            weatherIcon = 0;
-            iconY = 2;
-            tempY = 9;
-        }
-        else if (std::find(partyCloudyCodes.begin(), partyCloudyCodes.end(), weatherCode) != partyCloudyCodes.end())
-        {
-            weatherIcon = 3;
-            iconY = 2;
-        }
-
-        Screen.clear();
-        Screen.drawWeather(0, iconY, weatherIcon, 100);
-
-        if (temperature >= 10)
-        {
-            Screen.drawCharacter(9, tempY, Screen.readBytes(degreeSymbol), 4, 50);
-            Screen.drawNumbers(1, tempY, {(temperature - temperature % 10) / 10, temperature % 10});
-        }
-        else if (temperature <= -10)
-        {
-            Screen.drawCharacter(0, tempY, Screen.readBytes(minusSymbol), 4);
-            Screen.drawCharacter(11, tempY, Screen.readBytes(degreeSymbol), 4, 50);
-            temperature *= -1;
-            Screen.drawNumbers(3, tempY, {(temperature - temperature % 10) / 10, temperature % 10});
-        }
-        else if (temperature >= 0)
-        {
-            Screen.drawCharacter(7, tempY, Screen.readBytes(degreeSymbol), 4, 50);
-            Screen.drawNumbers(4, tempY, {temperature});
-        }
-        else
-        {
-            Screen.drawCharacter(0, tempY, Screen.readBytes(minusSymbol), 4);
-            Screen.drawCharacter(9, tempY, Screen.readBytes(degreeSymbol), 4, 50);
-            Screen.drawNumbers(3, tempY, {-temperature});
-        }
+      Serial.print("JSON parsing failed: ");
+      Serial.println(error.c_str());
+      http.end();
+      return;
     }
+
+    int temperature = round(doc["current_condition"][0]["temp_C"].as<float>());
+    int weatherCode = doc["current_condition"][0]["weatherCode"].as<int>();
+    int weatherIcon = 0;
+    int iconY = 1;
+    int tempY = 10;
+
+    if (std::find(thunderCodes.begin(), thunderCodes.end(), weatherCode) != thunderCodes.end())
+    {
+      weatherIcon = 1;
+    }
+    else if (std::find(rainCodes.begin(), rainCodes.end(), weatherCode) != rainCodes.end())
+    {
+      weatherIcon = 4;
+    }
+    else if (std::find(snowCodes.begin(), snowCodes.end(), weatherCode) != snowCodes.end())
+    {
+      weatherIcon = 5;
+    }
+    else if (std::find(fogCodes.begin(), fogCodes.end(), weatherCode) != fogCodes.end())
+    {
+      weatherIcon = 6;
+      iconY = 2;
+    }
+    else if (std::find(clearCodes.begin(), clearCodes.end(), weatherCode) != clearCodes.end())
+    {
+      weatherIcon = 2;
+      iconY = 1;
+      tempY = 9;
+    }
+    else if (std::find(cloudyCodes.begin(), cloudyCodes.end(), weatherCode) != cloudyCodes.end())
+    {
+      weatherIcon = 0;
+      iconY = 2;
+      tempY = 9;
+    }
+    else if (std::find(partyCloudyCodes.begin(), partyCloudyCodes.end(), weatherCode) !=
+             partyCloudyCodes.end())
+    {
+      weatherIcon = 3;
+      iconY = 2;
+    }
+
+    // Cache the weather data
+    hasCachedData = true;
+    cachedTemperature = temperature;
+    cachedWeatherIcon = weatherIcon;
+    cachedIconY = iconY;
+    cachedTempY = tempY;
+
+    // Draw the weather
+    drawWeather();
+  }
+  else
+  {
+    Serial.print("HTTP request failed with code: ");
+    Serial.println(code);
+
+    Screen.clear();
+
+    Screen.setPixel(7, 4, 1);
+    Screen.setPixel(8, 4, 1);
+    Screen.setPixel(7, 5, 1);
+    Screen.setPixel(8, 5, 1);
+    Screen.setPixel(7, 6, 1);
+    Screen.setPixel(8, 6, 1);
+    Screen.setPixel(7, 7, 1);
+    Screen.setPixel(8, 7, 1);
+    Screen.setPixel(7, 8, 1);
+    Screen.setPixel(8, 8, 1);
+
+    Screen.setPixel(7, 10, 1);
+    Screen.setPixel(8, 10, 1);
+    Screen.setPixel(7, 11, 1);
+    Screen.setPixel(8, 11, 1);
+  }
+
+  http.end();
+}
+
+void WeatherPlugin::teardown()
+{
+  http.end();
+}
+
+void WeatherPlugin::drawWeather()
+{
+  Screen.clear();
+  Screen.drawWeather(0, cachedIconY, cachedWeatherIcon, 100);
+
+  int temperature = cachedTemperature;
+  int tempY = cachedTempY;
+
+  if (temperature >= 10)
+  {
+    Screen.drawCharacter(9, tempY, Screen.readBytes(degreeSymbol), 4, 50);
+    Screen.drawNumbers(1, tempY, {(temperature - temperature % 10) / 10, temperature % 10});
+  }
+  else if (temperature <= -10)
+  {
+    Screen.drawCharacter(0, tempY, Screen.readBytes(minusSymbol), 4);
+    Screen.drawCharacter(11, tempY, Screen.readBytes(degreeSymbol), 4, 50);
+    temperature *= -1;
+    Screen.drawNumbers(3, tempY, {(temperature - temperature % 10) / 10, temperature % 10});
+  }
+  else if (temperature >= 0)
+  {
+    Screen.drawCharacter(7, tempY, Screen.readBytes(degreeSymbol), 4, 50);
+    Screen.drawNumbers(4, tempY, {temperature});
+  }
+  else
+  {
+    Screen.drawCharacter(0, tempY, Screen.readBytes(minusSymbol), 4);
+    Screen.drawCharacter(9, tempY, Screen.readBytes(degreeSymbol), 4, 50);
+    Screen.drawNumbers(3, tempY, {-temperature});
+  }
 }
 
 const char *WeatherPlugin::getName() const
 {
-    return "Weather";
+  return "Weather";
 }

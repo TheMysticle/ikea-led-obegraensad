@@ -1,8 +1,8 @@
 #pragma once
 
 #include "PluginManager.h"
-#include <vector>
 #include <Arduino.h>
+#include <vector>
 
 struct ScheduleItem
 {
@@ -17,6 +17,10 @@ class PluginScheduler
 private:
   PluginScheduler() = default;
   int currentScheduleIndex = -1; // -1 means no schedule item is active
+
+  bool needsPersist = false;
+  unsigned long lastPersistRequest = 0;
+  static constexpr unsigned long PERSIST_DELAY_MS = 2000;
 
 public:
   static PluginScheduler &getInstance();
@@ -39,6 +43,8 @@ public:
 
 private:
   void applyScheduleItem(int index);
+  void requestPersist();
+  void checkAndPersist();
 };
 
 extern PluginScheduler &Scheduler;

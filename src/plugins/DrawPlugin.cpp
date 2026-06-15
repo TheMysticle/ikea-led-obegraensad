@@ -2,27 +2,19 @@
 
 void DrawPlugin::setup()
 {
+#ifdef ESP32
+  vTaskDelay(pdMS_TO_TICKS(50));
+#else
   delay(50);
+#endif
   Screen.clear();
-  if (Screen.isCacheEmpty())
-  {
-    Screen.loadFromStorage();
-  }
-  else
-  {
-    Screen.restoreCache();
-  }
+  Screen.loadFromStorage();
 #ifdef ENABLE_SERVER
   sendInfo();
 #endif
 }
 
-void DrawPlugin::teardown()
-{
-  Screen.cacheCurrent();
-}
-
-void DrawPlugin::websocketHook(DynamicJsonDocument &request)
+void DrawPlugin::websocketHook(JsonDocument &request)
 {
   const char *event = request["event"];
 

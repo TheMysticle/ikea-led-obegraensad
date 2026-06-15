@@ -2,27 +2,29 @@
 
 void CirclePlugin::setup()
 {
-    this->circleStep = 0;
+  this->circleStep = 0;
 }
 
 void CirclePlugin::loop()
 {
-    std::vector<int> bits = Screen.readBytes(this->frames[this->circleStep]);
+  if (!timer.isReady(200))
+    return;
 
-    for (int i = 0; i < bits.size(); i++)
-    {
-        Screen.setPixelAtIndex(i, bits[i]);
-    }
+  std::vector<int> bits = Screen.readBytes(this->frames[this->circleStep]);
 
-    this->circleStep++;
-    if (this->circleStep > 14)
-    {
-        this->circleStep = 7;
-    }
-    delay(200);
+  for (int i = 0; i < bits.size(); i++)
+  {
+    Screen.setPixelAtIndex(i, bits[i]);
+  }
+
+  this->circleStep++;
+  if (this->circleStep > 14)
+  {
+    this->circleStep = 7;
+  }
 }
 
 const char *CirclePlugin::getName() const
 {
-    return "Circle";
+  return "Circle";
 }

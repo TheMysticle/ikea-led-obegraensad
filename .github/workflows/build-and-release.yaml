@@ -3,25 +3,23 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*.*.*'
-    branches:
-      - main
+      - "v*.*.*"
   pull_request:
     branches:
       - main
-    
+
 jobs:
   build_esp32dev:
     name: Build Firmware
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.8'
+          python-version: "3.10"
 
       - name: Install PlatformIO
         run: |
@@ -33,20 +31,20 @@ jobs:
           mkdir -p include
           cat <<EOL > include/secrets.h
           #pragma once
-          #define WIFI_HOSTNAME "ikealedmatrix"
+          #define WIFI_HOSTNAME "ikea-led"
           #ifdef ESP8266
           #define WIFI_SSID "WifiForIkeaLamp"
           #define WIFI_PASSWORD "WifiPasswordForIkeaLamp"
           #endif
           #define OTA_USERNAME "admin"
-          #define OTA_PASSWORD "password"
+          #define OTA_PASSWORD "ikea-led-wall"
           EOL
 
       - name: Install dependencies
         run: |
-          platformio update
-          platformio upgrade
-          platformio lib install
+          pio pkg update
+          pio upgrade
+          pio pkg install
 
       - name: Build project for esp32dev
         run: platformio run --environment esp32dev
@@ -57,7 +55,7 @@ jobs:
           mv ./.pio/build/esp32dev/firmware.bin ./builds/esp32dev_firmware.bin
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: esp32dev_firmware
           path: ./builds/esp32dev_firmware.bin
@@ -68,21 +66,27 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        environment: [nodemcuv2, d1_mini_pro-ota]
+        environment: [nodemcuv2, d1_mini_pro-ota, ESP32-wemos, esp32c3, esp32s3]
         include:
           - environment: nodemcuv2
             artifact_name: nodemcuv2_firmware
           - environment: d1_mini_pro-ota
             artifact_name: d1_mini_pro_ota_firmware
+          - environment: ESP32-wemos
+            artifact_name: ESP32-wemos_firmware
+          - environment: esp32c3
+            artifact_name: esp32c3_firmware
+          - environment: esp32s3
+            artifact_name: esp32s3_firmware
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.8'
+          python-version: "3.10"
 
       - name: Install PlatformIO
         run: |
@@ -94,20 +98,20 @@ jobs:
           mkdir -p include
           cat <<EOL > include/secrets.h
           #pragma once
-          #define WIFI_HOSTNAME "ikealedmatrix"
+          #define WIFI_HOSTNAME "ikea-led"
           #ifdef ESP8266
           #define WIFI_SSID "WifiForIkeaLamp"
           #define WIFI_PASSWORD "WifiPasswordForIkeaLamp"
           #endif
           #define OTA_USERNAME "admin"
-          #define OTA_PASSWORD "password"
+          #define OTA_PASSWORD "ikea-led-wall"
           EOL
 
       - name: Install dependencies
         run: |
-          platformio update
-          platformio upgrade
-          platformio lib install
+          pio pkg update
+          pio upgrade
+          pio pkg install
 
       - name: Build project for ${{ matrix.environment }}
         run: platformio run --environment ${{ matrix.environment }}
@@ -120,11 +124,10 @@ jobs:
 
       - name: Upload artifact
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: ./builds/${{ matrix.artifact_name }}.bin
-
 
   release:
     name: Create GitHub Release
@@ -133,54 +136,70 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Download ESP32 firmware
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: esp32dev_firmware
-          path: ./builds/  # specify a target directory
+          path: ./builds/ # specify a target directory
 
       - name: Download ESP8266 firmware (nodemcuv2)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: nodemcuv2_firmware
-          path: ./builds/  # specify a target directory
+          path: ./builds/ # specify a target directory
 
       - name: Download ESP8266 firmware (d1_mini_pro-ota)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: d1_mini_pro_ota_firmware
-          path: ./builds/  # specify a target directory
+          path: ./builds/ # specify a target directory
 
-      - name: Get version from tag
-        id: get_version
-        run: |
-          VERSION=${GITHUB_REF##*/}
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Download ESP32-wemos firmware
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ESP32-wemos_firmware
+          path: ./builds/ # specify a target directory
+
+      - name: Download ESP32-C3 firmware
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: esp32c3_firmware
+          path: ./builds/ # specify a target directory
+
+      - name: Download ESP32-S3 firmware
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: esp32s3_firmware
+          path: ./builds/ # specify a target directory
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          name: Pre-release ${{ env.VERSION }}
           draft: true
           prerelease: true
+          name: Release ${{ github.ref_name }}
           body: |
             This is a prerelease version of the firmware.
-            Credentials for OTA updates:
-            - Username: admin
-            - Password: password
-            Credentials for WiFi connection:
-            - SSID: WifiForIkeaLamp
-            - Password: WifiPasswordForIkeaLamp
-              Note: If the device cannot connect to the WiFi network (ESP32 only), it will create an access point.
-            Default hostname: ikealedmatrix
-          files: |
-            ./builds/esp32dev_firmware.bin
-            ./builds/nodemcuv2_firmware.bin
-            ./builds/d1_mini_pro_ota_firmware.bin
+
+            ## Installation
+            Flash the appropriate firmware binary for your device. https://github.com/ph1p/ikea-led-obegraensad?tab=readme-ov-file#ota-updates
+
+            ## Default Configuration
+            - **Hostname:** ikea-led
+            - **OTA Username:** admin
+            - **OTA Password:** ikea-led-wall
+            - **WiFi SSID:** WifiForIkeaLamp (ESP8266 only)
+            - **WiFi Password:** WifiPasswordForIkeaLamp (ESP8266 only)
+
+            **Note:** ESP32 devices will create an access point if unable to connect to WiFi.
+          files: ./builds/*.bin
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
