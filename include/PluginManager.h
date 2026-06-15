@@ -27,6 +27,11 @@ public:
   virtual void loop();
   virtual const char *getName() const = 0;
 
+  virtual bool hasSpeedControl() const { return false; }
+  virtual void setSpeed(int speed) {}
+  virtual int getSpeed() const { return 0; }
+  virtual int getDefaultSpeed() const { return 0; }
+
   void setId(int id);
   int getId() const;
 };

@@ -25,7 +25,7 @@ interface SidebarProps {
   onBrightnessChange: (value: number, shouldSend?: boolean) => void;
   onArtnetChange: (value: number, shouldSend?: boolean) => void;
   onPersistPlugin: () => void;
-  onGOLDelayChange: (value: number, shouldSend?: boolean) => void;
+  onSpeedChange: (value: number, shouldSend?: boolean) => void;
 }
 
 export const Sidebar: Component<SidebarProps> = (props) => {
@@ -162,23 +162,35 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </SidebarSection>
         </Show>
 
-        <Show when={store?.plugin === 4 && !store?.isActiveScheduler}>
+        <Show when={store?.hasSpeedControl && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
 
-          <SidebarSection title="Time Step Delay">
+          <SidebarSection title="Animation Speed">
             <div class="space-y-2">
-              <input
-                type="range"
-                min="1"
-                max="4000"
-                value={store?.GOLDelay}
-                class="w-full"
-                onInput={(e) => props.onGOLDelayChange(parseInt(e.currentTarget.value, 10))}
-                onPointerUp={(e) =>
-                  props.onGOLDelayChange(parseInt(e.currentTarget.value, 10), true)
-                }
-              />
-              <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">{store?.GOLDelay}</div>
+              <div class="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={store?.speed}
+                  class="flex-1"
+                  onInput={(e) => props.onSpeedChange(parseInt(e.currentTarget.value, 10))}
+                  onPointerUp={(e) =>
+                    props.onSpeedChange(parseInt(e.currentTarget.value, 10), true)
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => props.onSpeedChange(store?.defaultSpeed || 50, true)}
+                  class="bg-slate-800 dark:bg-slate-700 text-white border-0 px-2 py-1 text-xs cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded shadow-sm"
+                  title="Reset to default"
+                >
+                  <i class="fa-solid fa-rotate-left" />
+                </button>
+              </div>
+              <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">
+                {store?.speed}%
+              </div>
             </div>
           </SidebarSection>
         </Show>

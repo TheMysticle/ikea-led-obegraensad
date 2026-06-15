@@ -17,7 +17,7 @@ void CometPlugin::setup()
 
 void CometPlugin::loop()
 {
-  if (!timer.isReady(40))
+  if (!timer.isReady(delayTime))
   {
     return;
   }

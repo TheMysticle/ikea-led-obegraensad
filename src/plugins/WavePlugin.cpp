@@ -10,7 +10,7 @@ void WavePlugin::setup()
 
 void WavePlugin::loop()
 {
-  if (!timer.isReady(50))
+  if (!timer.isReady(delayTime))
     return;
 
   // Generate wave pattern

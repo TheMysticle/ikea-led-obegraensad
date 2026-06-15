@@ -43,7 +43,7 @@ const actions: StoreActions = {
   setPlugin: (plugin) => setStore("plugin", plugin),
   setBrightness: (brightness) => setStore("brightness", brightness),
   setArtnetUniverse: (artnetUniverse) => setStore("artnetUniverse", artnetUniverse),
-  setGOLDelay: (GOLDelay) => setStore("GOLDelay", GOLDelay),
+  setSpeed: (speed) => setStore("speed", speed),
   setIndexMatrix: (indexMatrix) => setStore("indexMatrix", indexMatrix),
   setLeds: (leds) => setStore("leds", leds),
   setSystemStatus: (systemStatus: SYSTEM_STATUS) => setStore("systemStatus", systemStatus),
@@ -104,6 +104,10 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
             if (isValidNumber(json.plugin)) actions.setPlugin(json.plugin);
             if (isValidBoolean(json.scheduleActive)) actions.setIsActiveScheduler(json.scheduleActive);
             if (isValidNumber(json.activeScheduleIndex)) actions.setActiveScheduleIndex(json.activeScheduleIndex);
+            
+            setStore("hasSpeedControl", isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false);
+            if (isValidNumber(json.speed)) setStore("speed", json.speed);
+            if (isValidNumber(json.defaultSpeed)) setStore("defaultSpeed", json.defaultSpeed);
           });
           break;
         case "info":
@@ -147,6 +151,10 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
             if (mainStore.plugin === 1) {
               actions.setIndexMatrix([...new Array(256)].map((_, i) => i));
             }
+
+            setStore("hasSpeedControl", isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false);
+            if (isValidNumber(json.speed)) setStore("speed", json.speed);
+            if (isValidNumber(json.defaultSpeed)) setStore("defaultSpeed", json.defaultSpeed);
 
             if (isValidArray(json.data)) {
               actions.setLeds(json.data as number[]);

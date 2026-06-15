@@ -20,6 +20,7 @@ private:
   void init();
   void show();
   uint16_t gol_delay = 150;
+  int currentSpeed = 50;
 
   NonBlockingDelay updateTimer;
   NonBlockingDelay initTimer;
@@ -29,5 +30,12 @@ public:
   void setup() override;
   void loop() override;
   const char *getName() const override;
-  void websocketHook(JsonDocument &request) override;
+  
+  bool hasSpeedControl() const override { return true; }
+  void setSpeed(int speed) override { 
+    currentSpeed = speed;
+    gol_delay = map(speed, 1, 100, 300, 10);
+  }
+  int getSpeed() const override { return currentSpeed; }
+  int getDefaultSpeed() const override { return 50; }
 };

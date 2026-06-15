@@ -15,7 +15,7 @@ void FirefliesPlugin::setup()
 
 void FirefliesPlugin::loop()
 {
-  if (!timer.isReady(60))
+  if (!timer.isReady(delayTime))
   {
     return;
   }

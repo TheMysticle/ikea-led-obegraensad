@@ -21,7 +21,7 @@ void BubblesPlugin::setup()
 
 void BubblesPlugin::loop()
 {
-  if (!timer.isReady(80))
+  if (!timer.isReady(delayTime))
   {
     return;
   }

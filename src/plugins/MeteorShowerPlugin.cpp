@@ -19,7 +19,7 @@ void MeteorShowerPlugin::setup()
 
 void MeteorShowerPlugin::loop()
 {
-  if (!timer.isReady(50))
+  if (!timer.isReady(delayTime))
   {
     return;
   }

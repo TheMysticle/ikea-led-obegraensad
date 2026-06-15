@@ -25,7 +25,7 @@ export const App: Component = () => {
       | "persist-plugin"
       | "artnet"
       | "brightness"
-      | "goldelay",
+      | "speed",
     data?: Record<string, string | number> | { data: number[] },
   ) =>
     actions.send(
@@ -88,10 +88,10 @@ export const App: Component = () => {
     }
   };
 
-  const handleGOLDelayChange = (value: number, shouldSend = false) => {
-    actions?.setGOLDelay(value);
+  const handleSpeedChange = (value: number, shouldSend = false) => {
+    actions?.setSpeed(value);
     if (shouldSend) {
-      wsMessage("goldelay", { delay: value });
+      wsMessage("speed", { speed: value });
     }
   };
 
@@ -188,7 +188,7 @@ export const App: Component = () => {
           onPluginChange={handlePluginChange}
           onBrightnessChange={handleBrightnessChange}
           onArtnetChange={handleArtnetUniverseChange}
-          onGOLDelayChange={handleGOLDelayChange}
+          onSpeedChange={handleSpeedChange}
           onPersistPlugin={handlePersistPlugin}
         />
       }

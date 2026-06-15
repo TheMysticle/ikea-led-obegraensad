@@ -29,7 +29,7 @@ void BlobPlugin::setup()
 
 void BlobPlugin::loop()
 {
-  if (!updateTimer.isReady(UPDATE_INTERVAL_MS))
+  if (!updateTimer.isReady(delayTime))
   {
     return;
   }

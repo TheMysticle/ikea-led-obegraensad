@@ -23,6 +23,13 @@ void sendInfo()
   jsonDocument["rotation"] = Screen.currentRotation;
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
+  
+  Plugin* activePlugin = pluginManager.getActivePlugin();
+  jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
+  if (activePlugin->hasSpeedControl()) {
+    jsonDocument["speed"] = activePlugin->getSpeed();
+    jsonDocument["defaultSpeed"] = activePlugin->getDefaultSpeed();
+  }
 
   JsonArray scheduleArray = jsonDocument["schedule"].to<JsonArray>();
   for (const auto &item : Scheduler.schedule)
@@ -66,6 +73,13 @@ void sendMinimalInfo()
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["activeScheduleIndex"] = Scheduler.getActiveScheduleIndex(); // ADD THIS LINE
+
+  Plugin* activePlugin = pluginManager.getActivePlugin();
+  jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
+  if (activePlugin->hasSpeedControl()) {
+    jsonDocument["speed"] = activePlugin->getSpeed();
+    jsonDocument["defaultSpeed"] = activePlugin->getDefaultSpeed();
+  }
 
   String output;
   serializeJson(jsonDocument, output);
@@ -148,6 +162,14 @@ void onWsEvent(AsyncWebSocket *server,
                 Scheduler.isBrightnessOverridden = true;
             }
             sendMinimalInfo();
+          }
+          else if (!strcmp(event, "speed"))
+          {
+            if (pluginManager.getActivePlugin()->hasSpeedControl()) {
+              int speed = wsRequest["speed"].as<int>();
+              pluginManager.getActivePlugin()->setSpeed(speed);
+              sendMinimalInfo();
+            }
           }
           else if (!strcmp(event, "data"))
           {

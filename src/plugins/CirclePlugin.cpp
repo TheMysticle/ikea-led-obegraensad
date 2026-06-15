@@ -7,7 +7,7 @@ void CirclePlugin::setup()
 
 void CirclePlugin::loop()
 {
-  if (!timer.isReady(200))
+  if (!timer.isReady(delayTime))
     return;
 
   std::vector<int> bits = Screen.readBytes(this->frames[this->circleStep]);

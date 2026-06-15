@@ -10,7 +10,7 @@ void CheckerboardPlugin::setup()
 
 void CheckerboardPlugin::loop()
 {
-  if (!timer.isReady(100))
+  if (!timer.isReady(delayTime))
     return;
 
   for (uint8_t y = 0; y < HEIGHT; y++)

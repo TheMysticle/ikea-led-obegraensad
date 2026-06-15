@@ -171,18 +171,4 @@ const char *GameOfLifePlugin::getName() const
   return "GameOfLife";
 }
 
-void GameOfLifePlugin::websocketHook(JsonDocument &request)
-{
-  const char *event = request["event"];
 
-  if (currentStatus == NONE)
-  {
-    if (!strcmp(event, "goldelay"))
-    {
-      uint16_t new_delay = request["delay"].as<uint16_t>();
-      Serial.print("Changing Game of life delay to ");
-      Serial.println(new_delay);
-      gol_delay = new_delay;
-    }
-  }
-}

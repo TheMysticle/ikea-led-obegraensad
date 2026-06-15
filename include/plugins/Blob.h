@@ -23,7 +23,17 @@ public:
   void loop() override;
   const char* getName() const override;
 
+  bool hasSpeedControl() const override { return true; }
+  void setSpeed(int speed) override { 
+    currentSpeed = speed;
+    delayTime = map(speed, 1, 100, 150, 10);
+  }
+  int getSpeed() const override { return currentSpeed; }
+  int getDefaultSpeed() const override { return 50; }
+
 private:
+  int currentSpeed = 50;
+  int delayTime = 50;
   struct Ball
   {
     float x, y;
@@ -37,7 +47,6 @@ private:
   static constexpr float SPEED = 0.2f;
   static constexpr float CAP_VALUE = 3.0f;
   static constexpr float GAMMA = 0.7f;
-  static constexpr uint16_t UPDATE_INTERVAL_MS = 50;
 
   uint8_t previousBrightness[ROWS * COLS];
   NonBlockingDelay updateTimer;

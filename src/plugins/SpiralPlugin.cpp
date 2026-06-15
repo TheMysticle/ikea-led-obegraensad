@@ -11,7 +11,7 @@ void SpiralPlugin::setup()
 
 void SpiralPlugin::loop()
 {
-  if (!timer.isReady(30))
+  if (!timer.isReady(delayTime))
     return;
 
   // Fade previous frame

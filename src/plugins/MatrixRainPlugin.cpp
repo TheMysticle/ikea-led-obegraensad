@@ -15,7 +15,7 @@ void MatrixRainPlugin::setup()
 
 void MatrixRainPlugin::loop()
 {
-  if (!timer.isReady(50))
+  if (!timer.isReady(delayTime))
     return;
 
   // Fade all pixels
