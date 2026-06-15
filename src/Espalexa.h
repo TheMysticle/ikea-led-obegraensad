@@ -1,4 +1,4 @@
-﻿#ifndef Espalexa_h
+#ifndef Espalexa_h
 #define Espalexa_h
 
 /*
@@ -47,6 +47,12 @@
  #endif
 #endif
 #include <WiFiUdp.h>
+
+#ifdef ARDUINO_ARCH_ESP32
+ #include <WiFi.h>
+#else
+ #include <ESP8266WiFi.h>
+#endif
 
 #ifdef ESPALEXA_DEBUG
  #pragma message "Espalexa 2.7.0 debug mode"
@@ -264,10 +270,10 @@ private:
     #ifdef ESPALEXA_ASYNC
     if (serverAsync == nullptr) {
       serverAsync = new AsyncWebServer(80);
-      serverAsync->onNotFound([=](AsyncWebServerRequest *request){server = request; serveNotFound();});
+      serverAsync->onNotFound([=, this](AsyncWebServerRequest *request){server = request; serveNotFound();});
     }
     
-    serverAsync->onRequestBody([=](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    serverAsync->onRequestBody([=, this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
       char b[len +1];
       b[len] = 0;
       memcpy(b, data, len);
@@ -276,9 +282,9 @@ private:
       EA_DEBUGLN(body);
     });
     #ifndef ESPALEXA_NO_SUBPAGE
-    serverAsync->on("/espalexa", HTTP_GET, [=](AsyncWebServerRequest *request){server = request; servePage();});
+    serverAsync->on("/espalexa", HTTP_GET, [=, this](AsyncWebServerRequest *request){server = request; servePage();});
     #endif
-    serverAsync->on("/description.xml", HTTP_GET, [=](AsyncWebServerRequest *request){server = request; serveDescription();});
+    serverAsync->on("/description.xml", HTTP_GET, [=, this](AsyncWebServerRequest *request){server = request; serveDescription();});
     serverAsync->begin();
     
     #else
@@ -288,13 +294,13 @@ private:
       #else
       server = new ESP8266WebServer(80);  
       #endif
-      server->onNotFound([=](){serveNotFound();});
+      server->onNotFound([=, this](){serveNotFound();});
     }
 
     #ifndef ESPALEXA_NO_SUBPAGE
-    server->on("/espalexa", HTTP_GET, [=](){servePage();});
+    server->on("/espalexa", HTTP_GET, [=, this](){servePage();});
     #endif
-    server->on("/description.xml", HTTP_GET, [=](){serveDescription();});
+    server->on("/description.xml", HTTP_GET, [=, this](){serveDescription();});
     server->begin();
     #endif
   }

@@ -48,7 +48,7 @@ void handleMessage(AsyncWebServerRequest *request)
     {
         Messages.remove(id);
         sendMinimalInfo();
-        StaticJsonDocument<256> jsonResponse;
+        JsonDocument jsonResponse;
         jsonResponse["status"] = "success";
         jsonResponse["message"] = "Message cleared";
         String output;

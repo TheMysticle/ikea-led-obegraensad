@@ -107,10 +107,13 @@ void TessiePlugin::networkTaskFunction(void *pvParameters) {
     Serial.println("[TessiePlugin] >> networkTaskFunction started.");
     TessiePlugin* plugin = (TessiePlugin*)pvParameters;
     
-    static DynamicJsonDocument doc(2048); 
+    JsonDocument doc;
     doc.clear();
 
-    String url = "https://api.tessie.com/" + String(TESSIE_VIN) + "/battery?access_token=" + String(TESSIE_API_KEY);
+    String url = "https://api.tessie.com/MISSING_VIN/battery?access_token=MISSING_API_KEY";
+#if defined(TESSIE_VIN) && defined(TESSIE_API_KEY)
+    url = "https://api.tessie.com/" + String(TESSIE_VIN) + "/battery?access_token=" + String(TESSIE_API_KEY);
+#endif
     
     // --- Use the persistent clients from the plugin instance ---
     plugin->httpClient.begin(plugin->wifiClient, url);
@@ -122,7 +125,7 @@ void TessiePlugin::networkTaskFunction(void *pvParameters) {
         DeserializationError error = deserializeJson(doc, plugin->httpClient.getStream());
         
         if (!error) {
-            if (doc.containsKey("battery_level") && doc.containsKey("pack_current")) {
+            if (!doc["battery_level"].isNull() && !doc["pack_current"].isNull()) {
                 plugin->chargePercentage = doc["battery_level"];
                 float packCurrent = doc["pack_current"];
                 plugin->chargingState = (packCurrent > 1.0) ? "Charging" : "Disconnected";
