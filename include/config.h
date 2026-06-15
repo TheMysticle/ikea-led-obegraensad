@@ -20,6 +20,8 @@ private:
   String weatherLocation;
   String ntpServer;
   String tzInfo;
+  String tessieVin;
+  String tessieApiKey;
   bool autoStartSchedule;
   bool initialized;
 
@@ -42,6 +44,8 @@ public:
   String getWeatherLocation() const;
   String getNtpServer() const;
   String getTzInfo() const;
+  String getTessieVin() const;
+  String getTessieApiKey() const;
   bool getAutoStartSchedule() const;
   bool isInitialized() const { return initialized; }
   
@@ -49,6 +53,8 @@ public:
   void setWeatherLocation(const String& location);
   void setNtpServer(const String& server);
   void setTzInfo(const String& tz);
+  void setTessieVin(const String& vin);
+  void setTessieApiKey(const String& key);
   void setAutoStartSchedule(bool autoStart);
   
   // Export to JSON

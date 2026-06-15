@@ -114,8 +114,8 @@ export const App: Component = () => {
             }
           >
             <ScreenInfo>
-              <h2 class="text-4xl">A plugin is currently running</h2>
-              <p class="text-xl mt-2 text-gray-300">Select "Draw" to show the canvas.</p>
+              <h2 class="text-4xl text-slate-900 dark:text-slate-100">A plugin is currently running</h2>
+              <p class="text-xl mt-2 text-slate-600 dark:text-slate-300">Select "Draw" to show the canvas.</p>
             </ScreenInfo>
           </Show>
         }
@@ -139,7 +139,7 @@ export const App: Component = () => {
               <button
                 type="button"
                 onClick={handleLoadImage}
-                class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
+                class="flex flex-col items-center justify-center gap-1 bg-slate-800 dark:bg-slate-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded shadow-sm text-xs"
               >
                 <i class="fa-solid fa-file-import text-base" />
                 <span>Import</span>
@@ -147,7 +147,7 @@ export const App: Component = () => {
               <button
                 type="button"
                 onClick={handleClear}
-                class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded hover:bg-red-600 text-xs"
+                class="flex flex-col items-center justify-center gap-1 bg-slate-800 dark:bg-slate-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded hover:bg-red-600 dark:hover:bg-red-500 shadow-sm text-xs"
               >
                 <i class="fa-solid fa-trash text-base" />
                 <span>Clear</span>
@@ -155,7 +155,7 @@ export const App: Component = () => {
               <button
                 type="button"
                 onClick={handlePersist}
-                class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
+                class="flex flex-col items-center justify-center gap-1 bg-slate-800 dark:bg-slate-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded shadow-sm text-xs"
               >
                 <i class="fa-solid fa-floppy-disk text-base" />
                 <span>Save</span>
@@ -163,7 +163,7 @@ export const App: Component = () => {
               <button
                 type="button"
                 onClick={handleLoad}
-                class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
+                class="flex flex-col items-center justify-center gap-1 bg-slate-800 dark:bg-slate-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded shadow-sm text-xs"
               >
                 <i class="fa-solid fa-refresh text-base" />
                 <span>Load</span>

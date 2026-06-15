@@ -3,6 +3,7 @@
 #include "plugins/TessiePlugin.h"
 #include "screen.h"
 #include "signs.h" 
+#include "config.h"
 
 // A simple structure to hold coordinates
 struct Point {
@@ -111,9 +112,11 @@ void TessiePlugin::networkTaskFunction(void *pvParameters) {
     doc.clear();
 
     String url = "https://api.tessie.com/MISSING_VIN/battery?access_token=MISSING_API_KEY";
-#if defined(TESSIE_VIN) && defined(TESSIE_API_KEY)
-    url = "https://api.tessie.com/" + String(TESSIE_VIN) + "/battery?access_token=" + String(TESSIE_API_KEY);
-#endif
+    String vin = config.getTessieVin();
+    String apiKey = config.getTessieApiKey();
+    if (vin.length() > 0 && apiKey.length() > 0) {
+        url = "https://api.tessie.com/" + vin + "/battery?access_token=" + apiKey;
+    }
     
     // --- Use the persistent clients from the plugin instance ---
     plugin->httpClient.begin(plugin->wifiClient, url);

@@ -20,9 +20,9 @@ export const Layout: Component<{
         fallback={
           <main class="h-full overflow-auto">
             <ScreenInfo>
-              <h2 class="text-4xl mb-4">{store.connectionStatus}...</h2>
+              <h2 class="text-4xl mb-4 text-slate-900 dark:text-slate-100">{store.connectionStatus}...</h2>
               <Show when={store.connectionState() === 0}>
-                <p class="text-white text-sm max-w-md mx-auto">
+                <p class="text-slate-600 dark:text-slate-300 text-sm max-w-md mx-auto">
                   Make sure your device is powered on and connected to the same network. Check
                   browser console for connection errors.
                 </p>
@@ -46,8 +46,8 @@ export const Layout: Component<{
           </Show>
 
           <aside
-            class={`bg-white p-6 shadow-lg flex flex-col
-              lg:relative lg:h-full lg:rounded-2xl
+            class={`bg-white dark:bg-slate-800 p-6 shadow-lg flex flex-col
+              lg:relative lg:h-full lg:rounded-2xl lg:border lg:border-slate-200 lg:dark:border-slate-700
               fixed top-0 left-0 h-full w-full z-50
               transition-transform duration-300 ease-in-out
               ${isMobileMenuOpen() ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
@@ -70,7 +70,7 @@ export const Layout: Component<{
             <button
               type="button"
               onClick={closeMobileMenu}
-              class="lg:hidden mt-4 w-full bg-gray-700 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
+              class="lg:hidden mt-4 w-full bg-slate-800 dark:bg-slate-700 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded shadow-sm"
             >
               <i class="fa-solid fa-times mr-2" />
               Close Menu
@@ -85,7 +85,7 @@ export const Layout: Component<{
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen())}
-          class="lg:hidden fixed bottom-6 right-6 z-30 bg-gray-700 text-white border-0 py-3 px-4 rounded-full shadow-lg cursor-pointer font-bold hover:opacity-80 active:-translate-y-px transition-all"
+          class="lg:hidden fixed bottom-6 right-6 z-30 bg-slate-800 dark:bg-slate-700 text-white border-0 py-3 px-4 rounded-full shadow-lg cursor-pointer font-bold hover:opacity-80 active:-translate-y-px transition-all"
         >
           <i class="fa-solid fa-bars text-xl" />
         </button>

@@ -63,6 +63,8 @@ void Config::setDefaults()
   weatherLocation = String(WEATHER_LOCATION);
   ntpServer = String(NTP_SERVER);
   tzInfo = String(TZ_INFO);
+  tessieVin = "";
+  tessieApiKey = "";
   autoStartSchedule = false;
 }
 
@@ -79,6 +81,8 @@ void Config::load()
     weatherLocation = preferences.getString("weatherLoc", String(WEATHER_LOCATION));
     ntpServer = preferences.getString("ntpServer", String(NTP_SERVER));
     tzInfo = preferences.getString("tzInfo", String(TZ_INFO));
+    tessieVin = preferences.getString("tessieVin", "");
+    tessieApiKey = preferences.getString("tessieKey", "");
     autoStartSchedule = preferences.getBool("autoSchedule", false);
     
     Serial.println("[Config] Configuration loaded from storage");
@@ -101,6 +105,8 @@ void Config::save()
     preferences.putString("weatherLoc", weatherLocation);
     preferences.putString("ntpServer", ntpServer);
     preferences.putString("tzInfo", tzInfo);
+    preferences.putString("tessieVin", tessieVin);
+    preferences.putString("tessieKey", tessieApiKey);
     preferences.putBool("autoSchedule", autoStartSchedule);
     
     Serial.println("[Config] Configuration saved");
@@ -126,6 +132,16 @@ String Config::getNtpServer() const
 String Config::getTzInfo() const
 {
   return tzInfo.length() > 0 ? tzInfo : String(TZ_INFO);
+}
+
+String Config::getTessieVin() const
+{
+  return tessieVin;
+}
+
+String Config::getTessieApiKey() const
+{
+  return tessieApiKey;
 }
 
 bool Config::getAutoStartSchedule() const
@@ -155,6 +171,16 @@ void Config::setTzInfo(const String& tz)
   }
 }
 
+void Config::setTessieVin(const String& vin)
+{
+  tessieVin = vin;
+}
+
+void Config::setTessieApiKey(const String& key)
+{
+  tessieApiKey = key;
+}
+
 void Config::setAutoStartSchedule(bool autoStart)
 {
   autoStartSchedule = autoStart;
@@ -167,6 +193,8 @@ String Config::toJson() const
   doc["weatherLocation"] = weatherLocation;
   doc["ntpServer"] = ntpServer;
   doc["tzInfo"] = tzInfo;
+  doc["tessieVin"] = tessieVin;
+  doc["tessieApiKey"] = tessieApiKey;
   doc["autoStartSchedule"] = autoStartSchedule;
   
   String output;
@@ -211,6 +239,14 @@ bool Config::fromJson(const String& json)
     if (tz.length() > 0 && tz.length() < 100) {
       tzInfo = tz;
     }
+  }
+  
+  if (doc["tessieVin"].is<String>()) {
+    tessieVin = doc["tessieVin"].as<String>();
+  }
+  
+  if (doc["tessieApiKey"].is<String>()) {
+    tessieApiKey = doc["tessieApiKey"].as<String>();
   }
   
   if (doc["autoStartSchedule"].is<bool>()) {
