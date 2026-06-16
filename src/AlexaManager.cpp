@@ -13,6 +13,12 @@ void setLedWallPower(uint8_t brightness)
     Logger::print("Alexa command received. New brightness: ");
     Logger::println(String(brightness));
 
+    // Fix Alexa's 1% mapping: Echo sometimes sends 4 for 1%, which Web UI rounds to 2%.
+    // Forcing it to 3 ensures Web UI mathematically rounds to exactly 1%.
+    if (brightness > 0 && brightness <= 4) {
+        brightness = 3;
+    }
+
     // This is the "Turn Off" command
     if (brightness == 0)
     {
