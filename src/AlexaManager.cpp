@@ -5,7 +5,6 @@
 #include "scheduler.h"
 #include "Logger.h"
 
-extern uint8_t lastKnownBrightness;
 Espalexa espalexa;
 
 void setLedWallPower(uint8_t brightness)
@@ -22,18 +21,7 @@ void setLedWallPower(uint8_t brightness)
     // This is the "Turn Off" command
     if (brightness == 0)
     {
-        // Get the brightness from the screen class BEFORE we turn it off
-        uint8_t currentBrightness = Screen.getCurrentBrightness();
-        if (currentBrightness > 0)
-        {
-            // Save the current brightness level into our runtime variable
-            lastKnownBrightness = currentBrightness;
-            Logger::print("Saving last known brightness for this session: ");
-            Logger::println(String(lastKnownBrightness));
-        }
-        
-        // Set brightness to 0 and PERSIST this "off" state
-        Screen.setBrightness(0, true);
+        Screen.setPower(false);
         if (Scheduler.isActive) {
             Scheduler.isBrightnessOverridden = true;
         }
@@ -42,23 +30,17 @@ void setLedWallPower(uint8_t brightness)
     else
     {
         // This is a generic "Turn On" command (value=255) from a fully off state
-        if (Screen.getCurrentBrightness() == 0 && brightness == 255)
+        if (!Screen.isPowerOn() && brightness == 255)
         {
-            Logger::print("Restoring last known brightness: ");
-            Logger::println(String(lastKnownBrightness));
-            // Restore the saved brightness instead of using Alexa's 255, and PERSIST it
-            Screen.setBrightness(lastKnownBrightness, true);
+            Logger::println("Restoring last known brightness via Power On.");
+            Screen.setPower(true);
         }
         else
         {
             // This is a specific dimming command (e.g., "set to 30%").
-            // Use the value from Alexa and PERSIST it.
             Logger::print("Setting specific brightness to: ");
             Logger::println(String(brightness));
             Screen.setBrightness(brightness, true);
-            
-            // Also update our runtime variable with this new specific value
-            lastKnownBrightness = brightness;
         }
         if (Scheduler.isActive) {
             Scheduler.isBrightnessOverridden = true;

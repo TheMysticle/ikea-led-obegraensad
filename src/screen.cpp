@@ -18,8 +18,33 @@ uint8_t Screen_::getCurrentBrightness() const
   return brightness_;
 }
 
+bool Screen_::isPowerOn() const
+{
+  return isPowerOn_;
+}
+
+void Screen_::setPower(bool on)
+{
+  if (on) {
+    if (!isPowerOn_) {
+      setBrightness(lastKnownBrightness_ > 0 ? lastKnownBrightness_ : 255, true);
+    }
+  } else {
+    if (isPowerOn_) {
+      setBrightness(0, true);
+    }
+  }
+}
+
 void Screen_::setBrightness(uint8_t brightness, bool shouldStore)
 {
+  if (brightness > 0) {
+    lastKnownBrightness_ = brightness;
+    isPowerOn_ = true;
+  } else {
+    isPowerOn_ = false;
+  }
+
   brightness_ = brightness;
 
 #ifdef ENABLE_SERVER

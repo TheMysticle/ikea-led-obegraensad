@@ -29,6 +29,7 @@ void sendInfo()
   jsonDocument["event"] = "info";
   jsonDocument["rotation"] = Screen.currentRotation;
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
+  jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   
   Plugin* activePlugin = pluginManager.getActivePlugin();
@@ -78,6 +79,7 @@ void sendMinimalInfo()
   jsonDocument["event"] = "minimal-info";
   jsonDocument["rotation"] = Screen.currentRotation;
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
+  jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["activeScheduleIndex"] = Scheduler.getActiveScheduleIndex(); // ADD THIS LINE
 
@@ -165,6 +167,15 @@ void onWsEvent(AsyncWebSocket *server,
           {
             uint8_t brightness = wsRequest["brightness"].as<uint8_t>();
             Screen.setBrightness(brightness, true);
+            if (Scheduler.isActive) {
+                Scheduler.isBrightnessOverridden = true;
+            }
+            sendMinimalInfo();
+          }
+          else if (!strcmp(event, "power"))
+          {
+            bool powerOn = wsRequest["state"].as<bool>();
+            Screen.setPower(powerOn);
             if (Scheduler.isActive) {
                 Scheduler.isBrightnessOverridden = true;
             }

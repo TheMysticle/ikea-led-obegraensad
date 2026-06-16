@@ -31,8 +31,6 @@ void sendJsonError(AsyncWebServerRequest *request, int statusCode, const char *e
   request->send(statusCode, "application/json", output);
 }
 
-extern uint8_t lastKnownBrightness;
-
 // http://your-server/message?text=Hello&repeat=3&id=42&graph=1,2,3,4
 void handleMessage(AsyncWebServerRequest *request)
 {
@@ -131,18 +129,7 @@ void handleSetBrightness(AsyncWebServerRequest *request)
     return;
   }
 
-    // If turning off, save current brightness first
-    if (value == 0 && Screen.getCurrentBrightness() > 0)
-    {
-        lastKnownBrightness = Screen.getCurrentBrightness();
-    }
-    // If turning on with full brightness, restore last known instead
-    else if (value == 255 && Screen.getCurrentBrightness() == 0)
-    {
-        value = lastKnownBrightness;
-    }
-
-    Screen.setBrightness(value, true);
+  Screen.setBrightness(value, true);
     if (Scheduler.isActive) {
         Scheduler.isBrightnessOverridden = true;
     }

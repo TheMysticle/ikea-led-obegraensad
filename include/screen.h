@@ -12,6 +12,8 @@ private:
   Screen_() = default;
 
   uint8_t brightness_ = MAX_BRIGHTNESS;
+  uint8_t lastKnownBrightness_ = MAX_BRIGHTNESS;
+  bool isPowerOn_ = true;
   uint8_t renderBuffer_[ROWS * COLS];
   uint8_t rotatedRenderBuffer_[ROWS * COLS];
   uint8_t positions[ROWS * COLS] = {
@@ -48,6 +50,9 @@ public:
 
   uint8_t getCurrentBrightness() const;
   void setBrightness(uint8_t brightness, bool shouldStore = false);
+
+  bool isPowerOn() const;
+  void setPower(bool on);
 
   void setRenderBuffer(const uint8_t *renderBuffer, bool grays = false);
   uint8_t *getRenderBuffer();

@@ -33,7 +33,6 @@
 #include "websocket.h"
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
-uint8_t lastKnownBrightness = 128; // Default to 50% brightness
 
 // --- CUSTOM BUTTON CONFIGURATION ---
 // Add the plugin IDs you want to cycle through with a SINGLE press.
@@ -145,10 +144,11 @@ void baseSetup()
 
 #ifdef ENABLE_STORAGE
     // Sync our runtime brightness variable with the value loaded from storage
-    uint8_t storedBrightness = Screen.getCurrentBrightness();
-    if (storedBrightness > 0) {
-        lastKnownBrightness = storedBrightness;
-    }
+      uint8_t storedBrightness = Screen.getCurrentBrightness();
+      if (storedBrightness > 0)
+      {
+        Screen.setBrightness(storedBrightness, false);
+      }
 #endif
 
   btn.onPress(pressHandler)

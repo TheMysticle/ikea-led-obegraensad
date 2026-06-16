@@ -21,6 +21,7 @@ const connectionStatus = ["Connecting", "Connected", "Disconnecting", "Disconnec
 const [mainStore, setStore] = createStore<Store>({
   isActiveScheduler: false,
   activeScheduleIndex: -1, // Add this
+  power: true,
   rotation: 0,
   plugins: [],
   plugin: 1,
@@ -40,6 +41,7 @@ const [mainStore, setStore] = createStore<Store>({
 const actions: StoreActions = {
   setIsActiveScheduler: (isActive) => setStore("isActiveScheduler", isActive),
   setActiveScheduleIndex: (index) => setStore("activeScheduleIndex", index), // Add this
+  setPower: (power) => setStore("power", power),
   setRotation: (rotation) => setStore("rotation", rotation),
   setPlugins: (plugins) => setStore("plugins", plugins),
   setPlugin: (plugin) => setStore("plugin", plugin),
@@ -110,6 +112,7 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
             }
             if (isValidNumber(json.rotation)) actions.setRotation(json.rotation);
             if (isValidNumber(json.brightness)) actions.setBrightness(json.brightness);
+            if (isValidBoolean(json.power)) actions.setPower(json.power);
             if (isValidNumber(json.plugin)) actions.setPlugin(json.plugin);
             if (isValidBoolean(json.scheduleActive))
               actions.setIsActiveScheduler(json.scheduleActive);
@@ -140,6 +143,10 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
 
             if (isValidNumber(json.brightness)) {
               actions.setBrightness(json.brightness);
+            }
+
+            if (isValidBoolean(json.power)) {
+              actions.setPower(json.power);
             }
 
             if (isValidBoolean(json.scheduleActive)) {

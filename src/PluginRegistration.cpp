@@ -15,7 +15,6 @@
 #include "plugins/FireworkPlugin.h"
 #include "plugins/GameOfLifePlugin.h"
 #include "plugins/LinesPlugin.h"
-#include "plugins/OffPlugin.h"
 #include "plugins/MatrixRainPlugin.h"
 #include "plugins/MeteorShowerPlugin.h"
 #include "plugins/PongClockPlugin.h"
@@ -55,7 +54,6 @@ void registerAllPlugins() {
   pluginManager.addPlugin(new RainPlugin());
   pluginManager.addPlugin(new MatrixRainPlugin());
   pluginManager.addPlugin(new FireworkPlugin());
-  pluginManager.addPlugin(new OffPlugin());
   pluginManager.addPlugin(new TixyPlugin());
   pluginManager.addPlugin(new BlobPlugin());
   pluginManager.addPlugin(new SpiralPlugin());

@@ -31,7 +31,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: Component<SidebarProps> = (props) => {
-  const [store] = useStore();
+  const [store, actions] = useStore();
 
   const [currentHash, setCurrentHash] = createSignal(window.location.hash);
   const [isDark, setIsDark] = createSignal(false);
@@ -130,20 +130,41 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
 
         <SidebarSection title="Brightness">
-          <div class="space-y-2">
-            <input
-              type="range"
-              min="0"
-              max="255"
-              value={store?.brightness}
-              class="w-full"
-              onInput={(e) => props.onBrightnessChange(parseInt(e.currentTarget.value, 10))}
-              onPointerUp={(e) =>
-                props.onBrightnessChange(parseInt(e.currentTarget.value, 10), true)
-              }
-            />
-            <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">
-              {Math.round(((store?.brightness ?? 255) / 255) * 100)}%
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                actions.send(JSON.stringify({ event: "power", state: !store?.power }));
+              }}
+              class={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded transition-all cursor-pointer shadow-sm ${
+                store?.power
+                  ? "bg-slate-800 dark:bg-slate-700 text-green-400 hover:text-green-300"
+                  : "bg-red-600 dark:bg-red-700 text-white hover:opacity-80"
+              }`}
+              title={store?.power ? "Turn Off" : "Turn On"}
+            >
+              <i class="fa-solid fa-power-off text-lg" />
+            </button>
+            <div class="flex-1 space-y-1">
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value={Math.round(((store?.brightness ?? 255) / 255) * 100)}
+                class="w-full"
+                onInput={(e) => {
+                  const pct = parseInt(e.currentTarget.value, 10);
+                  props.onBrightnessChange(Math.round((pct / 100) * 255));
+                }}
+                onPointerUp={(e) => {
+                  const pct = parseInt(e.currentTarget.value, 10);
+                  props.onBrightnessChange(Math.round((pct / 100) * 255), true);
+                }}
+                disabled={!store?.power}
+              />
+              <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">
+                {Math.round(((store?.brightness ?? 255) / 255) * 100)}%
+              </div>
             </div>
           </div>
         </SidebarSection>

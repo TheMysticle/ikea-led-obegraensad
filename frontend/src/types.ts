@@ -33,6 +33,7 @@ export interface StoreActions {
   setArtnetUniverse: (artnetUniverse: number) => void;
   setGOLDelay: (GOLDelay: number) => void;
   setSpeed: (speed: number) => void;
+  setPower: (power: boolean) => void;
   send: (message: string | ArrayBuffer) => void;
   addLog: (log: string) => void;
   setDiagnostics: (info: DiagnosticsInfo) => void;
@@ -42,6 +43,7 @@ export interface StoreActions {
 export interface Store {
   isActiveScheduler: boolean;
   activeScheduleIndex: number; // Add this
+  power: boolean;
   rotation: number;
   brightness: number;
   indexMatrix: number[];
