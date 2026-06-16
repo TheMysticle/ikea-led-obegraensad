@@ -12,12 +12,6 @@ void setLedWallPower(uint8_t brightness)
     Logger::print("Alexa command received. New brightness: ");
     Logger::println(String(brightness));
 
-    // Fix Alexa's 1% mapping: Echo sometimes sends 4 for 1%, which Web UI rounds to 2%.
-    // Forcing it to 3 ensures Web UI mathematically rounds to exactly 1%.
-    if (brightness > 0 && brightness <= 4) {
-        brightness = 3;
-    }
-
     // This is the "Turn Off" command
     if (brightness == 0)
     {
@@ -29,6 +23,23 @@ void setLedWallPower(uint8_t brightness)
     // This is the "Turn On" or "Dim" command
     else
     {
+        // Convert Alexa's 254-based scale back to the intended percentage (1-100%)
+        uint8_t percent = 100;
+        if (brightness < 255) {
+            uint8_t briL = brightness - 1;
+            // Alexa's Hue emulation shifts the mapping so 1% = bri 4, 50% = bri 127
+            // We cleanly invert this using integer rounding
+            if (briL <= 1) {
+                percent = 1;
+            } else {
+                percent = (uint8_t)(((briL - 1) * 100 + 126) / 253);
+                if (percent == 0) percent = 1;
+            }
+        }
+
+        // Convert that percentage perfectly into the 255-based scale the frontend expects
+        uint8_t mappedBrightness = (uint8_t)((percent * 255 + 50) / 100);
+
         // This is a generic "Turn On" command (value=255) from a fully off state
         if (!Screen.isPowerOn() && brightness == 255)
         {
@@ -37,10 +48,10 @@ void setLedWallPower(uint8_t brightness)
         }
         else
         {
-            // This is a specific dimming command (e.g., "set to 30%").
+            // This is a specific dimming command
             Logger::print("Setting specific brightness to: ");
-            Logger::println(String(brightness));
-            Screen.setBrightness(brightness, true);
+            Logger::println(String(mappedBrightness));
+            Screen.setBrightness(mappedBrightness, true);
         }
         if (Scheduler.isActive) {
             Scheduler.isBrightnessOverridden = true;
