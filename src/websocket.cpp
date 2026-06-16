@@ -1,5 +1,12 @@
 #include "PluginManager.h"
 #include "scheduler.h"
+#include "Logger.h"
+
+#ifdef ESP32
+#include <WiFi.h>
+#else
+#include <ESP8266WiFi.h>
+#endif
 
 #ifdef ENABLE_SERVER
 
@@ -185,6 +192,22 @@ void onWsEvent(AsyncWebSocket *server,
               serializeJson(dataDoc, output);
               client->text(output);
               dataDoc.clear();
+          }
+          else if (!strcmp(event, "enable-logging"))
+          {
+             bool enabled = wsRequest["enabled"];
+             Logger::liveLoggingEnabled = enabled;
+          }
+          else if (!strcmp(event, "diagnostics"))
+          {
+             JsonDocument doc;
+             doc["event"] = "diagnostics";
+             doc["heap"] = ESP.getFreeHeap();
+             doc["uptime"] = millis() / 1000;
+             doc["wifi_rssi"] = WiFi.RSSI();
+             String output;
+             serializeJson(doc, output);
+             client->text(output);
           }
         }
       }

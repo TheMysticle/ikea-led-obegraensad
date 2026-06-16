@@ -1,4 +1,5 @@
 #include "ota.h"
+#include "Logger.h"
 
 #ifdef ENABLE_SERVER
 
@@ -9,7 +10,7 @@ unsigned long ota_progress_millis = 0;
 
 void onOTAStart()
 {
-  Serial.println("OTA update started!");
+  Logger::println("OTA update started!");
   currentStatus = UPDATE;
 
   Screen.clear();
@@ -27,7 +28,7 @@ void onOTAProgress(size_t current, size_t final)
   if (millis() - ota_progress_millis > 1000)
   {
     ota_progress_millis = millis();
-    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+    Logger::printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
   }
 }
 
@@ -36,11 +37,11 @@ void onOTAEnd(bool success)
   // Log when OTA has finished
   if (success)
   {
-    Serial.println("OTA update finished successfully!");
+    Logger::println("OTA update finished successfully!");
   }
   else
   {
-    Serial.println("There was an error during OTA update!");
+    Logger::println("There was an error during OTA update!");
   }
 
   std::vector<int> bits = Screen.readBytes(letterR);

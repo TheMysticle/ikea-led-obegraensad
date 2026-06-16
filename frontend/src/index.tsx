@@ -5,6 +5,7 @@ import "./index.css";
 import { App } from "./app";
 import { StoreProvider } from "./contexts/store";
 import { Creator } from "./creator";
+import Diagnostics from "./diagnostics";
 import Scheduler from "./scheduler";
 import Settings from "./settings";
 
@@ -33,6 +34,9 @@ const Router = () => {
         </Match>
         <Match when={location() === "/settings"}>
           <Settings />
+        </Match>
+        <Match when={location() === "/diagnostics"}>
+          <Diagnostics />
         </Match>
       </Switch>
     </div>

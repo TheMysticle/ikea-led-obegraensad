@@ -48,6 +48,11 @@ private:
 
 public:
   PluginManager();
+  ~PluginManager() {
+    for (auto plugin : plugins) {
+      delete plugin;
+    }
+  }
 
   int addPlugin(Plugin *plugin);
   void setActivePlugin(const char *pluginName);

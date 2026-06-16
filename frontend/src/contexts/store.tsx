@@ -33,6 +33,8 @@ const [mainStore, setStore] = createStore<Store>({
   connectionState: wsState,
   connectionStatus: connectionStatus[0],
   schedule: [],
+  logs: [],
+  diagnostics: null,
 });
 
 const actions: StoreActions = {
@@ -49,6 +51,9 @@ const actions: StoreActions = {
   setSystemStatus: (systemStatus: SYSTEM_STATUS) => setStore("systemStatus", systemStatus),
   setSchedule: (items: ScheduleItem[]) => setStore("schedule", items),
   send: ws.send,
+  addLog: (log: string) => setStore("logs", (prev) => [...prev, log].slice(-100)), // keep last 100 logs
+  setDiagnostics: (info: DiagnosticsInfo) => setStore("diagnostics", info),
+  clearLogs: () => setStore("logs", []),
 };
 
 const store: [Store, StoreActions] = [mainStore, actions] as const;
@@ -96,16 +101,25 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
       switch (json.event) {
         case "minimal-info":
           batch(() => {
-            if (isValidNumber(json.status) && json.status >= 0 && json.status < Object.values(SYSTEM_STATUS).length) {
+            if (
+              isValidNumber(json.status) &&
+              json.status >= 0 &&
+              json.status < Object.values(SYSTEM_STATUS).length
+            ) {
               actions.setSystemStatus(Object.values(SYSTEM_STATUS)[json.status]);
             }
             if (isValidNumber(json.rotation)) actions.setRotation(json.rotation);
             if (isValidNumber(json.brightness)) actions.setBrightness(json.brightness);
             if (isValidNumber(json.plugin)) actions.setPlugin(json.plugin);
-            if (isValidBoolean(json.scheduleActive)) actions.setIsActiveScheduler(json.scheduleActive);
-            if (isValidNumber(json.activeScheduleIndex)) actions.setActiveScheduleIndex(json.activeScheduleIndex);
-            
-            setStore("hasSpeedControl", isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false);
+            if (isValidBoolean(json.scheduleActive))
+              actions.setIsActiveScheduler(json.scheduleActive);
+            if (isValidNumber(json.activeScheduleIndex))
+              actions.setActiveScheduleIndex(json.activeScheduleIndex);
+
+            setStore(
+              "hasSpeedControl",
+              isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false,
+            );
             if (isValidNumber(json.speed)) setStore("speed", json.speed);
             if (isValidNumber(json.defaultSpeed)) setStore("defaultSpeed", json.defaultSpeed);
           });
@@ -152,7 +166,10 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               actions.setIndexMatrix([...new Array(256)].map((_, i) => i));
             }
 
-            setStore("hasSpeedControl", isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false);
+            setStore(
+              "hasSpeedControl",
+              isValidBoolean(json.hasSpeedControl) ? json.hasSpeedControl : false,
+            );
             if (isValidNumber(json.speed)) setStore("speed", json.speed);
             if (isValidNumber(json.defaultSpeed)) setStore("defaultSpeed", json.defaultSpeed);
 
@@ -160,6 +177,22 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               actions.setLeds(json.data as number[]);
             }
           });
+          break;
+        case "log":
+          if (json.message) actions.addLog(json.message);
+          break;
+        case "diagnostics":
+          if (
+            isValidNumber(json.heap) &&
+            isValidNumber(json.uptime) &&
+            isValidNumber(json.wifi_rssi)
+          ) {
+            actions.setDiagnostics({
+              heap: json.heap,
+              uptime: json.uptime,
+              wifi_rssi: json.wifi_rssi,
+            });
+          }
           break;
       }
     } catch (error) {

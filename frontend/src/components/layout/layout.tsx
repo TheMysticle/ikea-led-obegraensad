@@ -20,7 +20,9 @@ export const Layout: Component<{
         fallback={
           <main class="h-full overflow-auto">
             <ScreenInfo>
-              <h2 class="text-4xl mb-4 text-slate-900 dark:text-slate-100">{store.connectionStatus}...</h2>
+              <h2 class="text-4xl mb-4 text-slate-900 dark:text-slate-100">
+                {store.connectionStatus}...
+              </h2>
               <Show when={store.connectionState() === 0}>
                 <p class="text-slate-600 dark:text-slate-300 text-sm max-w-md mx-auto">
                   Make sure your device is powered on and connected to the same network. Check

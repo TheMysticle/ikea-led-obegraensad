@@ -417,7 +417,9 @@ export const Creator: Component = () => {
             </>
           ) : (
             <ScreenInfo>
-              <h2 class="text-4xl text-slate-900 dark:text-slate-100">Create something awesome! 🙌.</h2>
+              <h2 class="text-4xl text-slate-900 dark:text-slate-100">
+                Create something awesome! 🙌.
+              </h2>
             </ScreenInfo>
           )}
         </div>
@@ -426,7 +428,9 @@ export const Creator: Component = () => {
         <div class="h-full">
           <div class="grid grid-rows-[calc(100vh-10rem)_auto]">
             <div class="overflow-y-auto space-y-3">
-              <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Controls</h3>
+              <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                Controls
+              </h3>
               <div class="flex gap-2 items-center flex-wrap">
                 <Show
                   when={!isPlaying()}
@@ -442,7 +446,10 @@ export const Creator: Component = () => {
                   }
                 >
                   <div class="flex gap-2 grow">
-                    <Button onClick={handleAddScreen} class="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                    <Button
+                      onClick={handleAddScreen}
+                      class="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                    >
                       <i class="fa-solid fa-plus mr-1" />
                       <span class="text-xs">Add</span>
                     </Button>
@@ -479,7 +486,10 @@ export const Creator: Component = () => {
                   <div class="w-full border-t border-slate-200 dark:border-slate-700 my-2" />
 
                   <div class="flex gap-2 grow">
-                    <Button onClick={handleImportJSON} class="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                    <Button
+                      onClick={handleImportJSON}
+                      class="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                    >
                       <i class="fa-solid fa-file-import mr-1" />
                       <span class="text-xs">Import</span>
                     </Button>

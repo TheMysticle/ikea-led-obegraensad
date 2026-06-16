@@ -1,4 +1,4 @@
-import { createSignal, onMount, onCleanup, type Component, For, type JSX, Show } from "solid-js";
+import { type Component, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 
 import { useStore } from "../../contexts/store";
 import { ToggleScheduleButton } from "../../scheduler";
@@ -10,7 +10,9 @@ interface SidebarSectionProps {
 
 const SidebarSection: Component<SidebarSectionProps> = (props) => (
   <div class="space-y-3">
-    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">{props.title}</h3>
+    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+      {props.title}
+    </h3>
     <div class="space-y-2">{props.children}</div>
   </div>
 );
@@ -37,21 +39,24 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   onMount(() => {
     const handler = () => setCurrentHash(window.location.hash);
     window.addEventListener("hashchange", handler);
-    
+
     const storedTheme = localStorage.getItem("theme");
-    if (storedTheme === "dark" || (!storedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (
+      storedTheme === "dark" ||
+      (!storedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
       setIsDark(true);
       document.documentElement.classList.add("dark");
     } else {
       setIsDark(false);
       document.documentElement.classList.remove("dark");
     }
-    
+
     onCleanup(() => window.removeEventListener("hashchange", handler));
   });
 
   const getHref = (path: string) => {
-    return currentHash() === `#${path}` ? '#/' : `#${path}`;
+    return currentHash() === `#${path}` ? "#/" : `#${path}`;
   };
 
   const toggleTheme = () => {
@@ -157,7 +162,9 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                 onInput={(e) => props.onArtnetChange(parseInt(e.currentTarget.value, 10))}
                 onPointerUp={(e) => props.onArtnetChange(parseInt(e.currentTarget.value, 10), true)}
               />
-              <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">{store?.artnetUniverse}</div>
+              <div class="text-sm text-slate-500 dark:text-slate-400 text-right font-medium">
+                {store?.artnetUniverse}
+              </div>
             </div>
           </SidebarSection>
         </Show>
@@ -243,27 +250,35 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         <Show when={store?.plugins.some((p) => p.name.includes("Animation"))}>
           <a
             href={getHref("/creator")}
-            class={`inline-flex items-center font-medium transition-colors ${currentHash() === '#/creator' ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+            class={`inline-flex items-center font-medium transition-colors ${currentHash() === "#/creator" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
           >
             <i class="fa-solid fa-pencil mr-2" />
             Animation Creator
           </a>
         </Show>
 
-        <a 
-          href={getHref("/scheduler")} 
-          class={`inline-flex items-center font-medium transition-colors ${currentHash() === '#/scheduler' ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+        <a
+          href={getHref("/scheduler")}
+          class={`inline-flex items-center font-medium transition-colors ${currentHash() === "#/scheduler" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
         >
           <i class="fa-regular fa-clock mr-2" />
           Plugin Scheduler ({store.schedule.length})
         </a>
 
-        <a 
-          href={getHref("/settings")} 
-          class={`inline-flex items-center font-medium transition-colors ${currentHash() === '#/settings' ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+        <a
+          href={getHref("/settings")}
+          class={`inline-flex items-center font-medium transition-colors ${currentHash() === "#/settings" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
         >
           <i class="fa-solid fa-gear mr-2" />
           Settings
+        </a>
+
+        <a
+          href={getHref("/diagnostics")}
+          class={`inline-flex items-center font-medium transition-colors ${currentHash() === "#/diagnostics" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}
+        >
+          <i class="fa-solid fa-stethoscope mr-2" />
+          Diagnostics
         </a>
 
         <div class="flex items-center justify-between">
@@ -274,14 +289,14 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             <i class="fa-solid fa-download mr-2" />
             Firmware Update
           </a>
-          
-          <button 
-            type="button" 
+
+          <button
+            type="button"
             onClick={toggleTheme}
             class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             title="Toggle Dark Mode"
           >
-            <i class={`fa-solid ${isDark() ? 'fa-sun' : 'fa-moon'} text-lg`} />
+            <i class={`fa-solid ${isDark() ? "fa-sun" : "fa-moon"} text-lg`} />
           </button>
         </div>
       </div>

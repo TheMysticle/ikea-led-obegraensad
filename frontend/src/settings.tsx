@@ -1,8 +1,9 @@
-import { createSignal, onMount, type Component } from "solid-js";
+import { type Component, createSignal, onMount } from "solid-js";
+
 import { Layout } from "./components/layout/layout";
 import Sidebar from "./components/layout/sidebar";
-import { useToast } from "./contexts/toast";
 import { useStore } from "./contexts/store";
+import { useToast } from "./contexts/toast";
 import { rotateArray } from "./helpers";
 
 interface Config {
@@ -101,19 +102,25 @@ export const Settings: Component = () => {
     <div class="p-8 h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <div class="max-w-2xl mx-auto">
         <h1 class="text-3xl font-bold mb-6 text-slate-900 dark:text-slate-100">Device Settings</h1>
-        
+
         {loading() ? (
           <div class="flex justify-center items-center py-12">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-slate-100" />
           </div>
         ) : (
-          <form onSubmit={handleSave} class="space-y-6 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-            
+          <form
+            onSubmit={handleSave}
+            class="space-y-6 bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700"
+          >
             <div class="space-y-4">
-              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">General</h2>
-              
+              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">
+                General
+              </h2>
+
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Weather Location (City)</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Weather Location (City)
+                </label>
                 <input
                   type="text"
                   class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 dark:text-slate-100"
@@ -124,7 +131,9 @@ export const Settings: Component = () => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Timezone String</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Timezone String
+                </label>
                 <input
                   type="text"
                   class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 dark:text-slate-100"
@@ -135,7 +144,9 @@ export const Settings: Component = () => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">NTP Server</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  NTP Server
+                </label>
                 <input
                   type="text"
                   class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 dark:text-slate-100"
@@ -144,7 +155,7 @@ export const Settings: Component = () => {
                   placeholder="e.g. pool.ntp.org"
                 />
               </div>
-              
+
               <div class="flex items-center">
                 <input
                   type="checkbox"
@@ -153,18 +164,27 @@ export const Settings: Component = () => {
                   checked={config().autoStartSchedule}
                   onChange={(e) => updateField("autoStartSchedule", e.currentTarget.checked)}
                 />
-                <label for="autoStartSchedule" class="ml-2 block text-sm text-slate-900 dark:text-slate-200">
+                <label
+                  for="autoStartSchedule"
+                  class="ml-2 block text-sm text-slate-900 dark:text-slate-200"
+                >
                   Auto-start Schedule on boot
                 </label>
               </div>
             </div>
 
             <div class="space-y-4 pt-4">
-              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">Tessie Integration</h2>
-              <p class="text-sm text-slate-500 dark:text-slate-400">Provide your Tessie API credentials to display Tesla charging status.</p>
-              
+              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">
+                Tessie Integration
+              </h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                Provide your Tessie API credentials to display Tesla charging status.
+              </p>
+
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">VIN (Vehicle Identification Number)</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  VIN (Vehicle Identification Number)
+                </label>
                 <input
                   type="text"
                   class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 font-mono text-sm dark:text-slate-100"
@@ -175,7 +195,9 @@ export const Settings: Component = () => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">API Key</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  API Key
+                </label>
                 <input
                   type="password"
                   class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 font-mono text-sm dark:text-slate-100"
@@ -194,7 +216,7 @@ export const Settings: Component = () => {
               >
                 Reset Defaults
               </button>
-              
+
               <button
                 type="submit"
                 disabled={loading()}

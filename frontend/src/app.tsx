@@ -114,8 +114,12 @@ export const App: Component = () => {
             }
           >
             <ScreenInfo>
-              <h2 class="text-4xl text-slate-900 dark:text-slate-100">A plugin is currently running</h2>
-              <p class="text-xl mt-2 text-slate-600 dark:text-slate-300">Select "Draw" to show the canvas.</p>
+              <h2 class="text-4xl text-slate-900 dark:text-slate-100">
+                A plugin is currently running
+              </h2>
+              <p class="text-xl mt-2 text-slate-600 dark:text-slate-300">
+                Select "Draw" to show the canvas.
+              </p>
             </ScreenInfo>
           </Show>
         }

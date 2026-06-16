@@ -9,8 +9,14 @@ export enum SYSTEM_STATUS {
 export interface ScheduleItem {
   pluginId: number;
   startTime: string; // "HH:MM" format
-  endTime: string;   // "HH:MM" format
+  endTime: string; // "HH:MM" format
   brightness: number; // 0-255, or -1 for 'don't change'
+}
+
+export interface DiagnosticsInfo {
+  heap: number;
+  uptime: number;
+  wifi_rssi: number;
 }
 
 export interface StoreActions {
@@ -27,6 +33,9 @@ export interface StoreActions {
   setGOLDelay: (GOLDelay: number) => void;
   setSpeed: (speed: number) => void;
   send: (message: string | ArrayBuffer) => void;
+  addLog: (log: string) => void;
+  setDiagnostics: (info: DiagnosticsInfo) => void;
+  clearLogs: () => void;
 }
 
 export interface Store {
@@ -47,6 +56,8 @@ export interface Store {
   connectionState: () => number;
   connectionStatus?: string;
   schedule: ScheduleItem[];
+  logs: string[];
+  diagnostics: DiagnosticsInfo | null;
 }
 
 export interface IToastContext {
