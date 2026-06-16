@@ -10,6 +10,7 @@ void handleMessageRemove(AsyncWebServerRequest *request);
 void handleGetInfo(AsyncWebServerRequest *request);
 void handleSetPlugin(AsyncWebServerRequest *request);
 void handleSetBrightness(AsyncWebServerRequest *request);
+void handleSetPower(AsyncWebServerRequest *request);
 void handleGetData(AsyncWebServerRequest *request);
 void handleSetSchedule(AsyncWebServerRequest *request, const String& body);
 void handleClearSchedule(AsyncWebServerRequest *request);

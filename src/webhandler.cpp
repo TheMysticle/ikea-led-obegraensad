@@ -139,6 +139,25 @@ void handleSetBrightness(AsyncWebServerRequest *request)
     sendJsonSuccess(request, "Brightness set successfully");
 }
 
+void handleSetPower(AsyncWebServerRequest *request)
+{
+    if (!request->hasArg("state")) {
+        sendJsonError(request, 400, "Missing 'state' parameter");
+        return;
+    }
+
+    String stateArg = request->arg("state");
+    bool state = (stateArg == "1" || stateArg == "true" || stateArg == "on");
+
+    Screen.setPower(state);
+    if (Scheduler.isActive) {
+        Scheduler.isBrightnessOverridden = true;
+    }
+
+    sendMinimalInfo();
+    sendJsonSuccess(request, "Power state set successfully");
+}
+
 void handleGetData(AsyncWebServerRequest *request)
 {
   try
@@ -168,6 +187,7 @@ void handleGetInfo(AsyncWebServerRequest *request)
   jsonDocument["plugin"] = pluginManager.getActivePlugin()->getId();
   jsonDocument["rotation"] = Screen.currentRotation;
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
+  jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["rssi"] = WiFi.RSSI();
   jsonDocument["uptime"] = millis() / 1000;
