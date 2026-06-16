@@ -26,7 +26,6 @@ void setLedWallPower(uint8_t brightness)
             Logger::println(String(lastKnownBrightness));
         }
         
-        Screen.clear(); // Clear the display buffer
         // Set brightness to 0 and PERSIST this "off" state
         Screen.setBrightness(0, true);
         if (Scheduler.isActive) {
@@ -70,4 +69,12 @@ void AlexaManager::init(AsyncWebServer* server) {
 
 void AlexaManager::loop() {
     espalexa.loop();
+}
+
+void AlexaManager::updateDeviceState(uint8_t brightness) {
+    // Only update if espalexa has devices
+    EspalexaDevice* d = espalexa.getDevice(0);
+    if (d != nullptr) {
+        d->setValue(brightness);
+    }
 }

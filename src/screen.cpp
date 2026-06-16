@@ -2,6 +2,11 @@
 #include "constants.h"
 #include <SPI.h>
 #include <algorithm>
+#include "config.h"
+
+#ifdef ENABLE_SERVER
+#include "AlexaManager.h"
+#endif
 
 #define TIMER_INTERVAL_US 200
 #define GRAY_LEVELS 64 // must be a power of two
@@ -16,6 +21,12 @@ uint8_t Screen_::getCurrentBrightness() const
 void Screen_::setBrightness(uint8_t brightness, bool shouldStore)
 {
   brightness_ = brightness;
+
+#ifdef ENABLE_SERVER
+  if (config.getAlexaEnabled()) {
+      AlexaManager::updateDeviceState(brightness);
+  }
+#endif
 
   // Invert brightness because PIN_ENABLE is active-LOW
   uint8_t invertedDuty = 255 - brightness;
