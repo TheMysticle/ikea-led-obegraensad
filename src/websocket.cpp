@@ -205,6 +205,7 @@ void onWsEvent(AsyncWebSocket *server,
              doc["heap"] = ESP.getFreeHeap();
              doc["uptime"] = millis() / 1000;
              doc["wifi_rssi"] = WiFi.RSSI();
+             doc["loggingEnabled"] = Logger::liveLoggingEnabled;
              String output;
              serializeJson(doc, output);
              client->text(output);

@@ -64,6 +64,7 @@
 #endif
 
 #include "EspalexaDevice.h"
+#include "Logger.h"
 
 #define DEVICE_UNIQUE_ID_LENGTH 12
 
@@ -406,6 +407,7 @@ public:
          strstr(request, "asic:1")     != nullptr )) //short for "device:basic:1"
     {
       EA_DEBUGLN("Responding search req...");
+      Logger::println("Alexa: Received M-SEARCH discovery request");
       respondToSearch();
     }
   }
@@ -479,6 +481,7 @@ public:
   #endif
     EA_DEBUGLN("AlexaApiCall");
     if (req.indexOf("api") <0) return false; //return if not an API call
+    Logger::println("Alexa: Received API request: " + req);
     EA_DEBUGLN("ok");
 
     if (body.indexOf("devicetype") > 0) //client wants a hue api username, we don't care and give static

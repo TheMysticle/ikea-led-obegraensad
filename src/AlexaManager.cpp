@@ -61,8 +61,10 @@ void setLedWallPower(uint8_t brightness)
     }
 }
 
+#include "config.h"
+
 void AlexaManager::init(AsyncWebServer* server) {
-    espalexa.addDevice("LED Wall", setLedWallPower); // "LED Wall" is the name Alexa will recognize
+    espalexa.addDevice(config.getAlexaDeviceName().c_str(), setLedWallPower); // Name Alexa will recognize from Config
     espalexa.begin(server); // Pass your existing AsyncWebServer instance to Espalexa
 }
 

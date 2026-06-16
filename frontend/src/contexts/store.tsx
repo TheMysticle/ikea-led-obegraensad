@@ -191,6 +191,7 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               heap: json.heap,
               uptime: json.uptime,
               wifi_rssi: json.wifi_rssi,
+              loggingEnabled: json.loggingEnabled === true,
             });
           }
           break;

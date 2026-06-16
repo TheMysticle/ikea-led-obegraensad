@@ -16,6 +16,7 @@
 
 #include "PluginManager.h"
 #include "config.h"
+#include "Logger.h"
 #include "scheduler.h"
 
 // Included new Managers
@@ -129,7 +130,11 @@ void baseSetup()
   initWebsocketServer(server);
   initWebServer();
 
-  AlexaManager::init(&server);
+  if (config.getAlexaEnabled()) {
+    AlexaManager::init(&server);
+  } else {
+    server.begin(); // Espalexa usually starts the server, so we must start it manually if disabled
+  }
 #endif
 
   registerAllPlugins();
@@ -261,8 +266,16 @@ void loop()
 
 #ifdef ENABLE_SERVER
   cleanUpClients();
-  AlexaManager::loop();
+  if (config.getAlexaEnabled()) {
+    AlexaManager::loop();
+  }
   ElegantOTA.loop();
+  
+  static unsigned long lastLogTime = 0;
+  if (Logger::liveLoggingEnabled && millis() - lastLogTime > 5000) {
+    lastLogTime = millis();
+    Logger::printf("[System] Running normally. Uptime: %lu seconds. Free Heap: %d bytes\n", millis() / 1000, ESP.getFreeHeap());
+  }
 #endif
 
 #ifdef ESP32

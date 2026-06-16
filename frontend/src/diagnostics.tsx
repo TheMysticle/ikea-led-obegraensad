@@ -6,7 +6,6 @@ import { useStore } from "./contexts/store";
 
 export const Diagnostics: Component = () => {
   const [store, actions] = useStore();
-  const [loggingEnabled, setLoggingEnabled] = createSignal(false);
   let logsContainerRef: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -27,7 +26,6 @@ export const Diagnostics: Component = () => {
 
   const toggleLogging = (e: Event) => {
     const checked = (e.target as HTMLInputElement).checked;
-    setLoggingEnabled(checked);
     actions.send(JSON.stringify({ event: "enable-logging", enabled: checked }));
   };
 
@@ -96,7 +94,7 @@ export const Diagnostics: Component = () => {
                   type="checkbox"
                   id="enableLogging"
                   class="w-4 h-4 text-slate-900 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
-                  checked={loggingEnabled()}
+                  checked={store.diagnostics?.loggingEnabled ?? false}
                   onChange={toggleLogging}
                 />
                 <label for="enableLogging" class="text-sm font-medium cursor-pointer">

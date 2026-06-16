@@ -23,6 +23,8 @@ private:
   String tessieVin;
   String tessieApiKey;
   bool autoStartSchedule;
+  bool alexaEnabled;
+  String alexaDeviceName;
   bool initialized;
 
 public:
@@ -41,12 +43,14 @@ public:
   void setDefaults();
   
   // Getters (always return valid values)
-  String getWeatherLocation() const;
-  String getNtpServer() const;
-  String getTzInfo() const;
-  String getTessieVin() const;
-  String getTessieApiKey() const;
+  const String& getWeatherLocation() const;
+  const String& getNtpServer() const;
+  const String& getTzInfo() const;
+  const String& getTessieVin() const;
+  const String& getTessieApiKey() const;
   bool getAutoStartSchedule() const;
+  bool getAlexaEnabled() const;
+  const String& getAlexaDeviceName() const;
   bool isInitialized() const { return initialized; }
   
   // Setters with validation
@@ -56,6 +60,8 @@ public:
   void setTessieVin(const String& vin);
   void setTessieApiKey(const String& key);
   void setAutoStartSchedule(bool autoStart);
+  void setAlexaEnabled(bool enabled);
+  void setAlexaDeviceName(const String& name);
   
   // Export to JSON
   String toJson() const;

@@ -67,6 +67,8 @@ void Config::setDefaults()
   tessieVin = "";
   tessieApiKey = "";
   autoStartSchedule = false;
+  alexaEnabled = false;
+  alexaDeviceName = "LED Wall";
 }
 
 void Config::load()
@@ -86,6 +88,8 @@ void Config::load()
     String encryptedKey = preferences.getString("tessieKey", "");
     tessieApiKey = encryptedKey.length() > 0 ? crypto.decryptString(encryptedKey) : "";
     autoStartSchedule = preferences.getBool("autoSchedule", false);
+    alexaEnabled = preferences.getBool("alexaEnabled", false);
+    alexaDeviceName = preferences.getString("alexaName", "LED Wall");
     
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
@@ -110,6 +114,8 @@ void Config::save()
     preferences.putString("tessieVin", tessieVin);
     preferences.putString("tessieKey", tessieApiKey.length() > 0 ? crypto.encryptString(tessieApiKey) : "");
     preferences.putBool("autoSchedule", autoStartSchedule);
+    preferences.putBool("alexaEnabled", alexaEnabled);
+    preferences.putString("alexaName", alexaDeviceName);
     
     Serial.println("[Config] Configuration saved");
   } catch (...) {
@@ -121,27 +127,27 @@ void Config::save()
 }
 
 
-String Config::getWeatherLocation() const
+const String& Config::getWeatherLocation() const
 {
-  return weatherLocation.length() > 0 ? weatherLocation : String(WEATHER_LOCATION);
+  return weatherLocation;
 }
 
-String Config::getNtpServer() const
+const String& Config::getNtpServer() const
 {
-  return ntpServer.length() > 0 ? ntpServer : String(NTP_SERVER);
+  return ntpServer;
 }
 
-String Config::getTzInfo() const
+const String& Config::getTzInfo() const
 {
-  return tzInfo.length() > 0 ? tzInfo : String(TZ_INFO);
+  return tzInfo;
 }
 
-String Config::getTessieVin() const
+const String& Config::getTessieVin() const
 {
   return tessieVin;
 }
 
-String Config::getTessieApiKey() const
+const String& Config::getTessieApiKey() const
 {
   return tessieApiKey;
 }
@@ -149,6 +155,16 @@ String Config::getTessieApiKey() const
 bool Config::getAutoStartSchedule() const
 {
   return autoStartSchedule;
+}
+
+bool Config::getAlexaEnabled() const
+{
+  return alexaEnabled;
+}
+
+const String& Config::getAlexaDeviceName() const
+{
+  return alexaDeviceName;
 }
 
 void Config::setWeatherLocation(const String& location)
@@ -188,6 +204,18 @@ void Config::setAutoStartSchedule(bool autoStart)
   autoStartSchedule = autoStart;
 }
 
+void Config::setAlexaEnabled(bool enabled)
+{
+  alexaEnabled = enabled;
+}
+
+void Config::setAlexaDeviceName(const String& name)
+{
+  if (name.length() > 0 && name.length() < 50) {
+    alexaDeviceName = name;
+  }
+}
+
 
 String Config::toJson() const
 {
@@ -198,6 +226,8 @@ String Config::toJson() const
   doc["tessieVin"] = tessieVin;
   doc["tessieApiKey"] = tessieApiKey.length() > 0 ? "sk_live_************************" : "";
   doc["autoStartSchedule"] = autoStartSchedule;
+  doc["alexaEnabled"] = alexaEnabled;
+  doc["alexaDeviceName"] = alexaDeviceName;
   
   String output;
   serializeJson(doc, output);
@@ -256,6 +286,17 @@ bool Config::fromJson(const String& json)
   
   if (doc["autoStartSchedule"].is<bool>()) {
     autoStartSchedule = doc["autoStartSchedule"].as<bool>();
+  }
+  
+  if (doc["alexaEnabled"].is<bool>()) {
+    alexaEnabled = doc["alexaEnabled"].as<bool>();
+  }
+  
+  if (doc["alexaDeviceName"].is<String>()) {
+    String name = doc["alexaDeviceName"].as<String>();
+    if (name.length() > 0 && name.length() < 50) {
+      alexaDeviceName = name;
+    }
   }
   
   return true;

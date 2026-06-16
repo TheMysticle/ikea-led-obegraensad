@@ -1,4 +1,5 @@
 #include "Logger.h"
+#include "constants.h"
 #include <ArduinoJson.h>
 
 #ifdef ENABLE_SERVER

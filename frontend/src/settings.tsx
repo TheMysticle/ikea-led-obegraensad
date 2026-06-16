@@ -13,6 +13,8 @@ interface Config {
   tessieVin: string;
   tessieApiKey: string;
   autoStartSchedule: boolean;
+  alexaEnabled: boolean;
+  alexaDeviceName: string;
 }
 
 export const Settings: Component = () => {
@@ -26,6 +28,8 @@ export const Settings: Component = () => {
     tessieVin: "",
     tessieApiKey: "",
     autoStartSchedule: false,
+    alexaEnabled: false,
+    alexaDeviceName: "LED Wall",
   });
 
   const [loading, setLoading] = createSignal(true);
@@ -204,6 +208,45 @@ export const Settings: Component = () => {
                   value={config().tessieApiKey}
                   onInput={(e) => updateField("tessieApiKey", e.currentTarget.value)}
                   placeholder="Enter your Tessie API Token"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-4 pt-4">
+              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">
+                Alexa Integration
+              </h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                Allow Amazon Alexa to discover and control this device.
+              </p>
+
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  id="alexaEnabled"
+                  class="w-4 h-4 text-slate-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
+                  checked={config().alexaEnabled}
+                  onChange={(e) => updateField("alexaEnabled", e.currentTarget.checked)}
+                />
+                <label
+                  for="alexaEnabled"
+                  class="ml-2 block text-sm text-slate-900 dark:text-slate-200"
+                >
+                  Enable Alexa Integration
+                </label>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Voice Command Device Name
+                </label>
+                <input
+                  type="text"
+                  disabled={!config().alexaEnabled}
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 dark:text-slate-100 disabled:opacity-50"
+                  value={config().alexaDeviceName}
+                  onInput={(e) => updateField("alexaDeviceName", e.currentTarget.value)}
+                  placeholder="e.g. LED Wall"
                 />
               </div>
             </div>

@@ -17,6 +17,7 @@ export interface DiagnosticsInfo {
   heap: number;
   uptime: number;
   wifi_rssi: number;
+  loggingEnabled?: boolean;
 }
 
 export interface StoreActions {
