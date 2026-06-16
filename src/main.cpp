@@ -244,12 +244,18 @@ void loop()
         {
           currentStatus = NONE;
           Messages.clearScrollingFlag();
+          if (pluginManager.getActivePlugin()) {
+            pluginManager.getActivePlugin()->setup();
+          }
         }
       }
       else if (Messages.wasScrolling())
       {
         currentStatus = NONE;
         Messages.clearScrollingFlag();
+        if (pluginManager.getActivePlugin()) {
+          pluginManager.getActivePlugin()->setup();
+        }
       }
     }
   }
