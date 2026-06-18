@@ -70,6 +70,9 @@ void Config::setDefaults()
   alexaEnabled = false;
   alexaDeviceName = "LED Wall";
   doublePressPlugin = 19;
+  spotifyClientId = "";
+  spotifyClientSecret = "";
+  spotifyRefreshToken = "";
 }
 
 void Config::load()
@@ -92,6 +95,12 @@ void Config::load()
     alexaEnabled = preferences.getBool("alexaEnabled", false);
     alexaDeviceName = preferences.getString("alexaName", "LED Wall");
     doublePressPlugin = preferences.getInt("dblPrssPlugin", 19);
+    
+    spotifyClientId = preferences.getString("spClientId", "");
+    String encSpSecret = preferences.getString("spClientSec", "");
+    spotifyClientSecret = encSpSecret.length() > 0 ? crypto.decryptString(encSpSecret) : "";
+    String encSpRefresh = preferences.getString("spRefresh", "");
+    spotifyRefreshToken = encSpRefresh.length() > 0 ? crypto.decryptString(encSpRefresh) : "";
     
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
@@ -119,6 +128,10 @@ void Config::save()
     preferences.putBool("alexaEnabled", alexaEnabled);
     preferences.putString("alexaName", alexaDeviceName);
     preferences.putInt("dblPrssPlugin", doublePressPlugin);
+    
+    preferences.putString("spClientId", spotifyClientId);
+    preferences.putString("spClientSec", spotifyClientSecret.length() > 0 ? crypto.encryptString(spotifyClientSecret) : "");
+    preferences.putString("spRefresh", spotifyRefreshToken.length() > 0 ? crypto.encryptString(spotifyRefreshToken) : "");
     
     Serial.println("[Config] Configuration saved");
   } catch (...) {
@@ -175,6 +188,21 @@ int Config::getDoublePressPlugin() const
   return doublePressPlugin;
 }
 
+const String& Config::getSpotifyClientId() const
+{
+  return spotifyClientId;
+}
+
+const String& Config::getSpotifyClientSecret() const
+{
+  return spotifyClientSecret;
+}
+
+const String& Config::getSpotifyRefreshToken() const
+{
+  return spotifyRefreshToken;
+}
+
 void Config::setWeatherLocation(const String& location)
 {
   if (location.length() > 0 && location.length() < 100) {
@@ -229,6 +257,21 @@ void Config::setDoublePressPlugin(int pluginId)
   doublePressPlugin = pluginId;
 }
 
+void Config::setSpotifyClientId(const String& clientId)
+{
+  spotifyClientId = clientId;
+}
+
+void Config::setSpotifyClientSecret(const String& clientSecret)
+{
+  spotifyClientSecret = clientSecret;
+}
+
+void Config::setSpotifyRefreshToken(const String& refreshToken)
+{
+  spotifyRefreshToken = refreshToken;
+}
+
 
 String Config::toJson() const
 {
@@ -242,6 +285,9 @@ String Config::toJson() const
   doc["alexaEnabled"] = alexaEnabled;
   doc["alexaDeviceName"] = alexaDeviceName;
   doc["doublePressPlugin"] = doublePressPlugin;
+  doc["spotifyClientId"] = spotifyClientId;
+  doc["spotifyClientSecret"] = spotifyClientSecret.length() > 0 ? "sk_live_************************" : "";
+  doc["spotifyRefreshToken"] = spotifyRefreshToken.length() > 0 ? "sk_live_************************" : "";
   
   String output;
   serializeJson(doc, output);
@@ -315,6 +361,24 @@ bool Config::fromJson(const String& json)
   
   if (doc["doublePressPlugin"].is<int>()) {
     doublePressPlugin = doc["doublePressPlugin"].as<int>();
+  }
+  
+  if (doc["spotifyClientId"].is<String>()) {
+    spotifyClientId = doc["spotifyClientId"].as<String>();
+  }
+  
+  if (doc["spotifyClientSecret"].is<String>()) {
+    String incomingSecret = doc["spotifyClientSecret"].as<String>();
+    if (incomingSecret != "sk_live_************************") {
+      spotifyClientSecret = incomingSecret;
+    }
+  }
+  
+  if (doc["spotifyRefreshToken"].is<String>()) {
+    String incomingRefresh = doc["spotifyRefreshToken"].as<String>();
+    if (incomingRefresh != "sk_live_************************") {
+      spotifyRefreshToken = incomingRefresh;
+    }
   }
   
   return true;

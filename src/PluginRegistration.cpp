@@ -39,6 +39,8 @@
 #include "plugins/BigClockPlugin.h"
 #include "plugins/ClockPlugin.h"
 #include "plugins/WeatherPlugin.h"
+#include "plugins/SpotifyPlugin.h"
+#include "plugins/SpotifyClockPlugin.h"
 #endif
 
 extern PluginManager pluginManager;
@@ -81,5 +83,7 @@ void registerAllPlugins() {
   pluginManager.addPlugin(new FroggerPlugin());
   pluginManager.addPlugin(new MazePlugin());
   pluginManager.addPlugin(new ArtNetPlugin());
+  pluginManager.addPlugin(new SpotifyPlugin());
+  pluginManager.addPlugin(new SpotifyClockPlugin());
 #endif
 }

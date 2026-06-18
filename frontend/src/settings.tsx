@@ -16,6 +16,9 @@ interface Config {
   alexaEnabled: boolean;
   alexaDeviceName: string;
   doublePressPlugin: number;
+  spotifyClientId: string;
+  spotifyClientSecret: string;
+  spotifyRefreshToken: string;
 }
 
 export const Settings: Component = () => {
@@ -32,6 +35,9 @@ export const Settings: Component = () => {
     alexaEnabled: false,
     alexaDeviceName: "LED Wall",
     doublePressPlugin: 19,
+    spotifyClientId: "",
+    spotifyClientSecret: "",
+    spotifyRefreshToken: "",
   });
 
   const [loading, setLoading] = createSignal(true);
@@ -264,6 +270,54 @@ export const Settings: Component = () => {
                   value={config().alexaDeviceName}
                   onInput={(e) => updateField("alexaDeviceName", e.currentTarget.value)}
                   placeholder="e.g. LED Wall"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-4 pt-4">
+              <h2 class="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">
+                Spotify Integration
+              </h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                Provide your Spotify API credentials to enable the Now Playing and Spotify Clock plugins.
+              </p>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Client ID
+                </label>
+                <input
+                  type="text"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 font-mono text-sm dark:text-slate-100"
+                  value={config().spotifyClientId}
+                  onInput={(e) => updateField("spotifyClientId", e.currentTarget.value)}
+                  placeholder="Enter your Spotify Client ID"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Client Secret
+                </label>
+                <input
+                  type="password"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 font-mono text-sm dark:text-slate-100"
+                  value={config().spotifyClientSecret}
+                  onInput={(e) => updateField("spotifyClientSecret", e.currentTarget.value)}
+                  placeholder="Enter your Spotify Client Secret"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Refresh Token
+                </label>
+                <input
+                  type="password"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 font-mono text-sm dark:text-slate-100"
+                  value={config().spotifyRefreshToken}
+                  onInput={(e) => updateField("spotifyRefreshToken", e.currentTarget.value)}
+                  placeholder="Enter your Spotify Refresh Token"
                 />
               </div>
             </div>

@@ -26,6 +26,9 @@ private:
   bool alexaEnabled;
   String alexaDeviceName;
   int doublePressPlugin;
+  String spotifyClientId;
+  String spotifyClientSecret;
+  String spotifyRefreshToken;
   bool initialized;
 
 public:
@@ -53,6 +56,9 @@ public:
   bool getAlexaEnabled() const;
   const String& getAlexaDeviceName() const;
   int getDoublePressPlugin() const;
+  const String& getSpotifyClientId() const;
+  const String& getSpotifyClientSecret() const;
+  const String& getSpotifyRefreshToken() const;
   bool isInitialized() const { return initialized; }
   
   // Setters with validation
@@ -65,6 +71,9 @@ public:
   void setAlexaEnabled(bool enabled);
   void setAlexaDeviceName(const String& name);
   void setDoublePressPlugin(int pluginId);
+  void setSpotifyClientId(const String& clientId);
+  void setSpotifyClientSecret(const String& clientSecret);
+  void setSpotifyRefreshToken(const String& refreshToken);
   
   // Export to JSON
   String toJson() const;
