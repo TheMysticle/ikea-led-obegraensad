@@ -20,7 +20,7 @@ void SpotifyClockPlugin::drawProgressBar(int progressPct) {
 
 void SpotifyClockPlugin::drawPlayPauseIcon(bool isPlaying) {
     for(int x=0; x<4; x++) {
-        for(int y=0; y<4; y++) {
+        for(int y=0; y<5; y++) {
             Screen.setPixel(x, y, 0);
         }
     }
