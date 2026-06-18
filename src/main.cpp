@@ -17,6 +17,7 @@
 #include "PluginManager.h"
 #include "config.h"
 #include "Logger.h"
+#include "CrashLogger.h"
 #include "scheduler.h"
 
 // Included new Managers
@@ -104,6 +105,8 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
 void baseSetup()
 {
   Serial.begin(115200);
+  
+  CrashLogger::init(); // Initialize crash logger early to capture any reset reasons
 
   pinMode(PIN_LATCH, OUTPUT);
   pinMode(PIN_CLOCK, OUTPUT);

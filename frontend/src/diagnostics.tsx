@@ -6,11 +6,38 @@ import { useStore } from "./contexts/store";
 
 export const Diagnostics: Component = () => {
   const [store, actions] = useStore();
+  const [lastCrashReason, setLastCrashReason] = createSignal<string | null>(null);
+  const [lastBacktrace, setLastBacktrace] = createSignal<string | null>(null);
   let logsContainerRef: HTMLDivElement | undefined;
+
+  const fetchLastCrash = async () => {
+    try {
+      const res = await fetch("/api/diagnostics");
+      if (res.ok) {
+        const data = await res.json();
+        setLastCrashReason(data.lastCrashReason);
+        setLastBacktrace(data.lastBacktrace);
+      }
+    } catch (e) {
+      console.error("Failed to fetch crash logs", e);
+    }
+  };
+
+  const clearCrashReason = async () => {
+    try {
+      const res = await fetch("/api/diagnostics/clear");
+      if (res.ok) {
+        setLastCrashReason("No recent crashes");
+      }
+    } catch (e) {
+      console.error("Failed to clear crash logs", e);
+    }
+  };
 
   onMount(() => {
     // Request diagnostics initially
     actions.send(JSON.stringify({ event: "diagnostics" }));
+    fetchLastCrash();
 
     // Poll diagnostics every 5 seconds
     const interval = setInterval(() => {
@@ -75,6 +102,54 @@ export const Diagnostics: Component = () => {
               {store.diagnostics ? `${store.diagnostics.wifi_rssi} dBm` : "Loading..."}
             </div>
           </div>
+        </div>
+
+        {/* Crash Reporter */}
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <span class="text-red-500">⚠️</span> System Crash Reporter
+              </h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Displays the hardware reset reason if the lamp rebooted unexpectedly.
+              </p>
+            </div>
+            <button
+              onClick={clearCrashReason}
+              class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+          
+          <div class={`p-4 rounded-md border ${
+            lastCrashReason() && lastCrashReason() !== "No recent crashes" 
+              ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" 
+              : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+          }`}>
+            <div class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
+              Last Hardware Reset Reason
+            </div>
+            <div class={`text-lg font-bold ${
+              lastCrashReason() && lastCrashReason() !== "No recent crashes"
+                ? "text-red-700 dark:text-red-400"
+                : "text-green-700 dark:text-green-400"
+            }`}>
+              {lastCrashReason() === null ? "Loading..." : lastCrashReason()}
+            </div>
+          </div>
+          
+          {lastBacktrace() && lastCrashReason() !== "No recent crashes" && (
+            <div class="mt-4">
+              <div class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Raw Crash Output (Backtrace)
+              </div>
+              <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                {lastBacktrace()}
+              </pre>
+            </div>
+          )}
         </div>
 
         {/* Live Logging */}

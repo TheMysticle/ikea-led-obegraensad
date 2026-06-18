@@ -3,6 +3,7 @@
 #include "messages.h"
 #include "scheduler.h"
 #include "websocket.h"
+#include "CrashLogger.h"
 #ifdef ESP32
 #include <WiFi.h>
 #else
@@ -409,5 +410,32 @@ void handleResetConfig(AsyncWebServerRequest *request)
   } catch (...) {
     Serial.println("[WebHandler] ERROR: Exception in handleResetConfig");
     sendJsonError(request, 500, "Error resetting configuration");
+  }
+}
+
+void handleGetDiagnostics(AsyncWebServerRequest *request)
+{
+  Serial.println("[WebHandler] GET /api/diagnostics");
+  try {
+    JsonDocument doc;
+    doc["lastCrashReason"] = CrashLogger::getLastCrashReason();
+    doc["lastBacktrace"] = CrashLogger::getLastBacktrace();
+    
+    String output;
+    serializeJson(doc, output);
+    request->send(200, "application/json", output);
+  } catch (...) {
+    sendJsonError(request, 500, "Error getting diagnostics");
+  }
+}
+
+void handleClearDiagnostics(AsyncWebServerRequest *request)
+{
+  Serial.println("[WebHandler] GET /api/diagnostics/clear");
+  try {
+    CrashLogger::clearLastCrashReason();
+    sendJsonSuccess(request, "Diagnostics cleared");
+  } catch (...) {
+    sendJsonError(request, 500, "Error clearing diagnostics");
   }
 }
