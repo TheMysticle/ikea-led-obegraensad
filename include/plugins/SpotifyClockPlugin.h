@@ -9,6 +9,8 @@ private:
     bool isScrolling = false;
     String lastSongId = "";
     String scrollText = "";
+    int lastState = -1;
+    
     
     void drawProgressBar(int progressPct);
     void drawPlayPauseIcon(bool isPlaying);

@@ -5,6 +5,7 @@ void SpotifyPlugin::setup() {
     Screen.clear();
     lastSongId = "";
     isScrolling = false;
+    lastState = -1;
 }
 
 void SpotifyPlugin::drawProgressBar(int progressPct) {
@@ -63,19 +64,29 @@ void SpotifyPlugin::loop() {
     spotifyClient.loop();
     const SpotifyData& data = spotifyClient.getData();
 
-    if (!data.isValid) {
+    int currentState = 0;
+    if (!data.isValid) currentState = 1;
+    else if (!data.isPlaying && data.id.isEmpty()) currentState = 2;
+    else currentState = 3;
+
+    if (currentState != lastState) {
         Screen.clear();
-        std::vector<int> dots = {10, 11, 12}; // ...
-        Screen.drawNumbers(4, 5, dots); // Loading
+        lastState = currentState;
+    }
+
+    if (!data.isValid) {
+        Screen.drawLoadingAnimation(7);
         delay(100);
         return;
     }
 
     if (!data.isPlaying && data.id.isEmpty()) {
-        Screen.clear();
-        // Draw Zzz
-        std::vector<int> zzz = {35, 35, 35};
-        Screen.drawNumbers(2, 5, zzz);
+        // Draw a Z manually
+        Screen.setPixel(6, 5, 255); Screen.setPixel(7, 5, 255); Screen.setPixel(8, 5, 255);
+        Screen.setPixel(8, 6, 255);
+        Screen.setPixel(7, 7, 255);
+        Screen.setPixel(6, 8, 255);
+        Screen.setPixel(6, 9, 255); Screen.setPixel(7, 9, 255); Screen.setPixel(8, 9, 255);
         delay(100);
         return;
     }
@@ -92,10 +103,10 @@ void SpotifyPlugin::loop() {
         Screen.scrollText(scrollText.c_str(), 40);
         isScrolling = false;
         Screen.clear(); // Clear after scroll
+        lastState = -1; // Force redraw next frame
     }
 
     // Static dashboard
-    Screen.clear();
     drawPlayPauseIcon(data.isPlaying);
     
     int pct = (data.durationMs > 0) ? (data.progressMs * 100) / data.durationMs : 0;

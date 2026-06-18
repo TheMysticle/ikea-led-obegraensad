@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 struct SpotifyData {
   bool isPlaying;
@@ -19,10 +21,15 @@ class SpotifyClient {
 public:
   SpotifyClient();
   void init();
-  void loop(); // Polls Spotify API
-  const SpotifyData& getData() const;
+  void loop(); // Used to process any non-blocking main-thread tasks, now empty
+  SpotifyData getData() const;
 
 private:
+  TaskHandle_t taskHandle;
+  SemaphoreHandle_t dataMutex;
+  static void networkTask(void* param);
+  bool isTaskRunning;
+
   WiFiClientSecure wifiClient;
   HTTPClient httpClient;
   

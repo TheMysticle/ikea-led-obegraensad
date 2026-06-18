@@ -6,6 +6,7 @@ void SpotifyClockPlugin::setup() {
     Screen.clear();
     lastSongId = "";
     isScrolling = false;
+    lastState = -1;
 }
 
 void SpotifyClockPlugin::drawProgressBar(int progressPct) {
@@ -45,18 +46,12 @@ void SpotifyClockPlugin::drawClock() {
         return;
     }
 
-    int hours = timeinfo.tm_hour;
-    int minutes = timeinfo.tm_min;
+    std::vector<int> hh = {timeinfo.tm_hour / 10, timeinfo.tm_hour % 10};
+    std::vector<int> mm = {timeinfo.tm_min / 10, timeinfo.tm_min % 10};
 
-    std::vector<int> numbers = {
-        hours / 10,
-        hours % 10,
-        10, // colon
-        minutes / 10,
-        minutes % 10
-    };
-
-    Screen.drawNumbers(1, 5, numbers); // Starts at x=1, y=5. 3x5 font. 5 chars = 15 pixels wide.
+    // Draw stacked like normal ClockPlugin, but moved to the right (x=6) to leave space for icons
+    Screen.drawNumbers(6, 2, hh);
+    Screen.drawNumbers(6, 8, mm);
 }
 
 void SpotifyClockPlugin::triggerScroll() {
@@ -68,15 +63,23 @@ void SpotifyClockPlugin::loop() {
     spotifyClient.loop();
     const SpotifyData& data = spotifyClient.getData();
 
-    if (!data.isValid) {
+    int currentState = 0;
+    if (!data.isValid) currentState = 1;
+    else if (!data.isPlaying && data.id.isEmpty()) currentState = 2;
+    else currentState = 3;
+
+    if (currentState != lastState) {
         Screen.clear();
+        lastState = currentState;
+    }
+
+    if (!data.isValid) {
         drawClock();
         delay(100);
         return;
     }
 
     if (!data.isPlaying && data.id.isEmpty()) {
-        Screen.clear();
         drawClock();
         delay(100);
         return;
@@ -93,9 +96,9 @@ void SpotifyClockPlugin::loop() {
         Screen.scrollText(scrollText.c_str(), 40);
         isScrolling = false;
         Screen.clear(); // Clear after scroll
+        lastState = -1; // Force redraw of full screen next loop
     }
 
-    Screen.clear();
     drawClock();
     drawPlayPauseIcon(data.isPlaying);
     
