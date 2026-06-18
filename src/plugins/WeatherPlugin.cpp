@@ -14,14 +14,6 @@ void WeatherPlugin::setup()
 {
   Screen.clear();
 
-#ifdef ESP32
-  if (secureClient == nullptr)
-  {
-    secureClient = new WiFiClientSecure();
-    secureClient->setInsecure();
-  }
-#endif
-
   // If we have cached data and it's still fresh (< 30 minutes old), redraw it
   if (hasCachedData && lastUpdate > 0 && millis() >= lastUpdate &&
       millis() - lastUpdate < (1000UL * 60 * 30))
@@ -74,41 +66,42 @@ void WeatherPlugin::update()
   Serial.println(weatherApiString);
 
 #ifdef ESP32
-  if (secureClient != nullptr)
-  {
-    http.begin(*secureClient, weatherApiString);
-  }
-  else
-  {
-    Serial.println("Secure client not initialized!");
-    return;
-  }
+  WiFiClientSecure* secureClient = new WiFiClientSecure();
+  secureClient->setInsecure();
+  this->http.begin(*secureClient, weatherApiString);
 #endif
 #ifdef ESP8266
-  http.begin(wiFiClient, weatherApiString);
+  this->http.begin(wiFiClient, weatherApiString);
 #endif
 
-  http.setTimeout(20000);
+  this->http.setTimeout(20000);
 
   Serial.println("Sending HTTP GET request...");
-  int code = http.GET();
+  int code = this->http.GET();
   Serial.print("HTTP response code: ");
   Serial.println(code);
 
   if (code == HTTP_CODE_OK)
   {
-    String payload = http.getString();
+    String payload = this->http.getString();
     Serial.print("Response size: ");
     Serial.println(payload.length());
 
+    JsonDocument filter;
+    filter["current_condition"][0]["temp_C"] = true;
+    filter["current_condition"][0]["weatherCode"] = true;
+
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, payload);
+    DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
 
     if (error)
     {
       Serial.print("JSON parsing failed: ");
       Serial.println(error.c_str());
-      http.end();
+      this->http.end();
+#ifdef ESP32
+      delete secureClient;
+#endif
       return;
     }
 
@@ -188,12 +181,15 @@ void WeatherPlugin::update()
     Screen.setPixel(8, 11, 1);
   }
 
-  http.end();
+  this->http.end();
+
+#ifdef ESP32
+  delete secureClient;
+#endif
 }
 
 void WeatherPlugin::teardown()
 {
-  http.end();
 }
 
 void WeatherPlugin::drawWeather()
