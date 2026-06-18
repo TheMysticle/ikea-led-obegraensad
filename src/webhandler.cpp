@@ -420,6 +420,7 @@ void handleGetDiagnostics(AsyncWebServerRequest *request)
     JsonDocument doc;
     doc["lastCrashReason"] = CrashLogger::getLastCrashReason();
     doc["lastBacktrace"] = CrashLogger::getLastBacktrace();
+    doc["crashReportingEnabled"] = config.getCrashReportingEnabled();
     
     String output;
     serializeJson(doc, output);

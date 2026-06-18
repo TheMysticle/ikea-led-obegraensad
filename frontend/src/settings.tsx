@@ -19,6 +19,7 @@ interface Config {
   spotifyClientId: string;
   spotifyClientSecret: string;
   spotifyRefreshToken: string;
+  crashReportingEnabled: boolean;
 }
 
 export const Settings: Component = () => {
@@ -38,6 +39,7 @@ export const Settings: Component = () => {
     spotifyClientId: "",
     spotifyClientSecret: "",
     spotifyRefreshToken: "",
+    crashReportingEnabled: false,
   });
 
   const [loading, setLoading] = createSignal(true);
@@ -197,6 +199,22 @@ export const Settings: Component = () => {
                     <option value={p.id}>{p.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div class="flex items-center pt-2">
+                <input
+                  type="checkbox"
+                  id="crashReportingEnabled"
+                  class="w-4 h-4 text-slate-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
+                  checked={config().crashReportingEnabled}
+                  onChange={(e) => updateField("crashReportingEnabled", e.currentTarget.checked)}
+                />
+                <label
+                  for="crashReportingEnabled"
+                  class="ml-2 block text-sm text-slate-900 dark:text-slate-200"
+                >
+                  Enable System Crash Reporting
+                </label>
               </div>
             </div>
 

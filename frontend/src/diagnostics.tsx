@@ -8,6 +8,7 @@ export const Diagnostics: Component = () => {
   const [store, actions] = useStore();
   const [lastCrashReason, setLastCrashReason] = createSignal<string | null>(null);
   const [lastBacktrace, setLastBacktrace] = createSignal<string | null>(null);
+  const [crashReportingEnabled, setCrashReportingEnabled] = createSignal<boolean>(false);
   let logsContainerRef: HTMLDivElement | undefined;
 
   const fetchLastCrash = async () => {
@@ -17,6 +18,7 @@ export const Diagnostics: Component = () => {
         const data = await res.json();
         setLastCrashReason(data.lastCrashReason);
         setLastBacktrace(data.lastBacktrace);
+        setCrashReportingEnabled(data.crashReportingEnabled);
       }
     } catch (e) {
       console.error("Failed to fetch crash logs", e);
@@ -115,40 +117,50 @@ export const Diagnostics: Component = () => {
                 Displays the hardware reset reason if the lamp rebooted unexpectedly.
               </p>
             </div>
-            <button
-              onClick={clearCrashReason}
-              class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-            >
-              Clear
-            </button>
+            {crashReportingEnabled() && (
+              <button
+                onClick={clearCrashReason}
+                class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
           </div>
           
-          <div class={`p-4 rounded-md border ${
-            lastCrashReason() && lastCrashReason() !== "No recent crashes" 
-              ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" 
-              : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-          }`}>
-            <div class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Last Hardware Reset Reason
+          {!crashReportingEnabled() ? (
+            <div class="p-4 rounded-md border bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+              System Crash Reporting is currently disabled in Settings. Enable it to capture hardware panics.
             </div>
-            <div class={`text-lg font-bold ${
-              lastCrashReason() && lastCrashReason() !== "No recent crashes"
-                ? "text-red-700 dark:text-red-400"
-                : "text-green-700 dark:text-green-400"
-            }`}>
-              {lastCrashReason() === null ? "Loading..." : lastCrashReason()}
-            </div>
-          </div>
-          
-          {lastBacktrace() && lastCrashReason() !== "No recent crashes" && (
-            <div class="mt-4">
-              <div class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Raw Crash Output (Backtrace)
+          ) : (
+            <>
+              <div class={`p-4 rounded-md border ${
+                lastCrashReason() && lastCrashReason() !== "No recent crashes" 
+                  ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" 
+                  : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+              }`}>
+                <div class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Last Hardware Reset Reason
+                </div>
+                <div class={`text-lg font-bold ${
+                  lastCrashReason() && lastCrashReason() !== "No recent crashes"
+                    ? "text-red-700 dark:text-red-400"
+                    : "text-green-700 dark:text-green-400"
+                }`}>
+                  {lastCrashReason() === null ? "Loading..." : lastCrashReason()}
+                </div>
               </div>
-              <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                {lastBacktrace()}
-              </pre>
-            </div>
+              
+              {lastBacktrace() && lastCrashReason() !== "No recent crashes" && (
+                <div class="mt-4">
+                  <div class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Raw Crash Output (Backtrace)
+                  </div>
+                  <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                    {lastBacktrace()}
+                  </pre>
+                </div>
+              )}
+            </>
           )}
         </div>
 

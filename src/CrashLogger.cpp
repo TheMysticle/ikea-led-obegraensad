@@ -4,6 +4,7 @@
 #ifdef ESP32
 #include <esp_system.h>
 #endif
+#include "config.h"
 
 Preferences crashPrefs;
 
@@ -13,9 +14,11 @@ RTC_NOINIT_ATTR char rtc_panic_log[RTC_LOG_SIZE];
 RTC_NOINIT_ATTR uint32_t rtc_panic_log_idx;
 RTC_NOINIT_ATTR uint32_t rtc_panic_log_magic;
 
+bool rtc_panic_log_enabled = false;
+
 extern "C" void __real_panic_print_char(const char c);
 extern "C" void __wrap_panic_print_char(const char c) {
-    if (rtc_panic_log_magic == 0x12345678 && rtc_panic_log_idx < RTC_LOG_SIZE - 1) {
+    if (rtc_panic_log_enabled && rtc_panic_log_magic == 0x12345678 && rtc_panic_log_idx < RTC_LOG_SIZE - 1) {
         rtc_panic_log[rtc_panic_log_idx++] = c;
     }
     __real_panic_print_char(c);
@@ -23,7 +26,7 @@ extern "C" void __wrap_panic_print_char(const char c) {
 
 extern "C" void __real_panic_print_str(const char *str);
 extern "C" void __wrap_panic_print_str(const char *str) {
-    if (rtc_panic_log_magic == 0x12345678) {
+    if (rtc_panic_log_enabled && rtc_panic_log_magic == 0x12345678) {
         while (*str && rtc_panic_log_idx < RTC_LOG_SIZE - 1) {
             rtc_panic_log[rtc_panic_log_idx++] = *str++;
         }
@@ -33,7 +36,7 @@ extern "C" void __wrap_panic_print_str(const char *str) {
 
 extern "C" void __real_panic_print_hex(int h);
 extern "C" void __wrap_panic_print_hex(int h) {
-    if (rtc_panic_log_magic == 0x12345678) {
+    if (rtc_panic_log_enabled && rtc_panic_log_magic == 0x12345678) {
         for (int i = 28; i >= 0; i -= 4) {
             int val = (h >> i) & 0xF;
             char c = val < 10 ? '0' + val : 'a' + val - 10;
@@ -47,7 +50,7 @@ extern "C" void __wrap_panic_print_hex(int h) {
 
 extern "C" void __real_panic_print_dec(int d);
 extern "C" void __wrap_panic_print_dec(int d) {
-    if (rtc_panic_log_magic == 0x12345678) {
+    if (rtc_panic_log_enabled && rtc_panic_log_magic == 0x12345678) {
         if (d == 0) {
             if (rtc_panic_log_idx < RTC_LOG_SIZE - 1) rtc_panic_log[rtc_panic_log_idx++] = '0';
         } else {
@@ -73,6 +76,13 @@ extern "C" void __wrap_panic_print_dec(int d) {
 
 void CrashLogger::init() {
 #ifdef ESP32
+    // Read config to see if we should be catching panics
+    rtc_panic_log_enabled = config.getCrashReportingEnabled();
+    
+    if (!rtc_panic_log_enabled) {
+        return; // Completely disabled, do not read or reset the buffer
+    }
+
     esp_reset_reason_t reason = esp_reset_reason();
     String reasonStr = "Unknown";
     bool isCrash = false;

@@ -73,6 +73,7 @@ void Config::setDefaults()
   spotifyClientId = "";
   spotifyClientSecret = "";
   spotifyRefreshToken = "";
+  crashReportingEnabled = false;
 }
 
 void Config::load()
@@ -101,6 +102,8 @@ void Config::load()
     spotifyClientSecret = encSpSecret.length() > 0 ? crypto.decryptString(encSpSecret) : "";
     String encSpRefresh = preferences.getString("spRefresh", "");
     spotifyRefreshToken = encSpRefresh.length() > 0 ? crypto.decryptString(encSpRefresh) : "";
+    
+    crashReportingEnabled = preferences.getBool("crashRep", false);
     
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
@@ -132,6 +135,8 @@ void Config::save()
     preferences.putString("spClientId", spotifyClientId);
     preferences.putString("spClientSec", spotifyClientSecret.length() > 0 ? crypto.encryptString(spotifyClientSecret) : "");
     preferences.putString("spRefresh", spotifyRefreshToken.length() > 0 ? crypto.encryptString(spotifyRefreshToken) : "");
+    
+    preferences.putBool("crashRep", crashReportingEnabled);
     
     Serial.println("[Config] Configuration saved");
   } catch (...) {
@@ -272,6 +277,11 @@ void Config::setSpotifyRefreshToken(const String& refreshToken)
   spotifyRefreshToken = refreshToken;
 }
 
+void Config::setCrashReportingEnabled(bool enabled)
+{
+  crashReportingEnabled = enabled;
+}
+
 
 String Config::toJson() const
 {
@@ -288,6 +298,7 @@ String Config::toJson() const
   doc["spotifyClientId"] = spotifyClientId;
   doc["spotifyClientSecret"] = spotifyClientSecret.length() > 0 ? "sk_live_************************" : "";
   doc["spotifyRefreshToken"] = spotifyRefreshToken.length() > 0 ? "sk_live_************************" : "";
+  doc["crashReportingEnabled"] = crashReportingEnabled;
   
   String output;
   serializeJson(doc, output);
@@ -379,6 +390,10 @@ bool Config::fromJson(const String& json)
     if (incomingRefresh != "sk_live_************************") {
       spotifyRefreshToken = incomingRefresh;
     }
+  }
+  
+  if (doc["crashReportingEnabled"].is<bool>()) {
+    crashReportingEnabled = doc["crashReportingEnabled"].as<bool>();
   }
   
   return true;
