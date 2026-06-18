@@ -39,8 +39,7 @@ BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
 std::vector<int> buttonCyclePlugins = {12, 16, 3, 7, 6, 11, 2}; 
 int currentCycleIndex = 0;
 
-// Define the plugin to activate on a DOUBLE press.
-const int DOUBLE_PRESS_PLUGIN_ID = 19; // TessiePlugin
+// Double press plugin is now configured via the Settings page
 
 // NOTE: Long press is handled in the pressHandler to activate the persisted default plugin.
 // --- END CUSTOM BUTTON CONFIGURATION ---
@@ -79,7 +78,7 @@ void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
   case BfButton::DOUBLE_PRESS:
      if (currentStatus != LOADING)
     {
-      pluginManager.setActivePluginById(DOUBLE_PRESS_PLUGIN_ID);
+      pluginManager.setActivePluginById(config.getDoublePressPlugin());
     }
     break;
 

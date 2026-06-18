@@ -69,6 +69,7 @@ void Config::setDefaults()
   autoStartSchedule = false;
   alexaEnabled = false;
   alexaDeviceName = "LED Wall";
+  doublePressPlugin = 19;
 }
 
 void Config::load()
@@ -90,6 +91,7 @@ void Config::load()
     autoStartSchedule = preferences.getBool("autoSchedule", false);
     alexaEnabled = preferences.getBool("alexaEnabled", false);
     alexaDeviceName = preferences.getString("alexaName", "LED Wall");
+    doublePressPlugin = preferences.getInt("dblPrssPlugin", 19);
     
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
@@ -116,6 +118,7 @@ void Config::save()
     preferences.putBool("autoSchedule", autoStartSchedule);
     preferences.putBool("alexaEnabled", alexaEnabled);
     preferences.putString("alexaName", alexaDeviceName);
+    preferences.putInt("dblPrssPlugin", doublePressPlugin);
     
     Serial.println("[Config] Configuration saved");
   } catch (...) {
@@ -167,6 +170,11 @@ const String& Config::getAlexaDeviceName() const
   return alexaDeviceName;
 }
 
+int Config::getDoublePressPlugin() const
+{
+  return doublePressPlugin;
+}
+
 void Config::setWeatherLocation(const String& location)
 {
   if (location.length() > 0 && location.length() < 100) {
@@ -216,6 +224,11 @@ void Config::setAlexaDeviceName(const String& name)
   }
 }
 
+void Config::setDoublePressPlugin(int pluginId)
+{
+  doublePressPlugin = pluginId;
+}
+
 
 String Config::toJson() const
 {
@@ -228,6 +241,7 @@ String Config::toJson() const
   doc["autoStartSchedule"] = autoStartSchedule;
   doc["alexaEnabled"] = alexaEnabled;
   doc["alexaDeviceName"] = alexaDeviceName;
+  doc["doublePressPlugin"] = doublePressPlugin;
   
   String output;
   serializeJson(doc, output);
@@ -297,6 +311,10 @@ bool Config::fromJson(const String& json)
     if (name.length() > 0 && name.length() < 50) {
       alexaDeviceName = name;
     }
+  }
+  
+  if (doc["doublePressPlugin"].is<int>()) {
+    doublePressPlugin = doc["doublePressPlugin"].as<int>();
   }
   
   return true;

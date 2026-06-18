@@ -25,6 +25,7 @@ private:
   bool autoStartSchedule;
   bool alexaEnabled;
   String alexaDeviceName;
+  int doublePressPlugin;
   bool initialized;
 
 public:
@@ -51,6 +52,7 @@ public:
   bool getAutoStartSchedule() const;
   bool getAlexaEnabled() const;
   const String& getAlexaDeviceName() const;
+  int getDoublePressPlugin() const;
   bool isInitialized() const { return initialized; }
   
   // Setters with validation
@@ -62,6 +64,7 @@ public:
   void setAutoStartSchedule(bool autoStart);
   void setAlexaEnabled(bool enabled);
   void setAlexaDeviceName(const String& name);
+  void setDoublePressPlugin(int pluginId);
   
   // Export to JSON
   String toJson() const;
