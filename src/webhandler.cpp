@@ -440,3 +440,19 @@ void handleClearDiagnostics(AsyncWebServerRequest *request)
     sendJsonError(request, 500, "Error clearing diagnostics");
   }
 }
+
+void handleRestart(AsyncWebServerRequest *request)
+{
+  Serial.println("[WebHandler] POST /api/restart");
+  try {
+    sendJsonSuccess(request, "Device is restarting...");
+    // Create a background task to restart after a small delay, allowing the HTTP response to be sent.
+    xTaskCreate([](void*) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        Serial.println("[WebHandler] Executing delayed restart.");
+        ESP.restart();
+    }, "restart_task", 2048, NULL, 1, NULL);
+  } catch (...) {
+    sendJsonError(request, 500, "Error initiating restart");
+  }
+}

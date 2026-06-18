@@ -107,6 +107,27 @@ export const Settings: Component = () => {
       setLoading(false);
     }
   };
+  const handleRestart = async () => {
+    if (!confirm("Are you sure you want to restart the device?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/restart", {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast("Device is restarting... Please wait.", 4000);
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
+      } else {
+        toast("Failed to restart device", 2000);
+        setLoading(false);
+      }
+    } catch (err) {
+      toast("Error restarting device", 2000);
+      setLoading(false);
+    }
+  };
 
   const updateField = (field: keyof Config, value: string | boolean) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -341,13 +362,22 @@ export const Settings: Component = () => {
             </div>
 
             <div class="flex items-center justify-between pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
-              <button
-                type="button"
-                onClick={handleReset}
-                class="px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium transition-colors"
-              >
-                Reset Defaults
-              </button>
+              <div class="flex gap-4">
+                <button
+                  type="button"
+                  onClick={handleRestart}
+                  class="px-4 py-2 text-sm text-yellow-600 dark:text-yellow-500 hover:text-yellow-800 dark:hover:text-yellow-300 font-medium transition-colors"
+                >
+                  Restart Device
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  class="px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium transition-colors"
+                >
+                  Reset Defaults
+                </button>
+              </div>
 
               <button
                 type="submit"

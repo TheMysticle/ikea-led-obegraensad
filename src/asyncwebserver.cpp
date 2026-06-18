@@ -77,6 +77,7 @@ void initWebServer()
     server.on("/api/config/reset", HTTP_POST, handleResetConfig);
     server.on("/api/diagnostics", HTTP_GET, handleGetDiagnostics);
     server.on("/api/diagnostics/clear", HTTP_GET, handleClearDiagnostics);
+    server.on("/api/restart", HTTP_POST, handleRestart);
   server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/html", R"(
 <!DOCTYPE html>

@@ -26,3 +26,4 @@ void handleSetConfigBody(AsyncWebServerRequest *request,
 void handleResetConfig(AsyncWebServerRequest *request);
 void handleGetDiagnostics(AsyncWebServerRequest *request);
 void handleClearDiagnostics(AsyncWebServerRequest *request);
+void handleRestart(AsyncWebServerRequest *request);
