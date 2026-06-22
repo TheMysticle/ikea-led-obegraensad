@@ -54,6 +54,10 @@ void BreakoutPlugin::gameOver() {
   delay(2000);
 }
 
+void BreakoutPlugin::teardown() {
+    udp.stop();
+}
+
 // NEW: Function to display the victory message
 void BreakoutPlugin::levelComplete() {
   udp.stop();

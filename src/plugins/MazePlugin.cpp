@@ -4,6 +4,12 @@ void MazePlugin::setup() {
     gameState = STATE_GAME_OVER;
 }
 
+void MazePlugin::teardown() {
+    udp.stop();
+    aiPath.clear();
+    aiPath.shrink_to_fit();
+}
+
 const char* MazePlugin::getName() const {
     return "Maze";
 }

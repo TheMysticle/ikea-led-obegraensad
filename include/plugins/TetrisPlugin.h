@@ -67,6 +67,7 @@ private:
 
 public:
     void setup() override;
+    void teardown() override;
     void loop() override;
     const char *getName() const override;
 };

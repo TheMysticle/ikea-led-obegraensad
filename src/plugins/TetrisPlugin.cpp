@@ -41,6 +41,10 @@ void TetrisPlugin::gameOver() {
     delay(2000);
 }
 
+void TetrisPlugin::teardown() {
+    udp.stop();
+}
+
 void TetrisPlugin::findBestMove() {
     long bestScore = 1000000; // Lower is better
 

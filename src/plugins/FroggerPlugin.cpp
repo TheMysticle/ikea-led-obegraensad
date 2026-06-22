@@ -4,6 +4,10 @@ void FroggerPlugin::setup() {
     gameState = STATE_GAME_OVER;
 }
 
+void FroggerPlugin::teardown() {
+    udp.stop();
+}
+
 const char* FroggerPlugin::getName() const {
     return "Frogger";
 }

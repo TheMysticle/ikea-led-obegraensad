@@ -4,6 +4,14 @@ void SnakePlugin::setup() {
     gameState = STATE_GAME_OVER;
 }
 
+void SnakePlugin::teardown() {
+    udp.stop();
+    snakeBody.clear();
+    snakeBody.shrink_to_fit();
+    aiPath.clear();
+    aiPath.shrink_to_fit();
+}
+
 const char* SnakePlugin::getName() const {
     return "Snake";
 }
