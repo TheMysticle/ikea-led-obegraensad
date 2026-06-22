@@ -17,11 +17,17 @@ private:
   unsigned long lastUpdate = 0;
   HTTPClient http;
 #ifdef ESP32
-  WiFiClientSecure *secureClient = nullptr;
+  WiFiClientSecure secureClient;
 #endif
 #ifdef ESP8266
   WiFiClient wiFiClient;
 #endif
+
+  TaskHandle_t networkTaskHandle = NULL;
+  static void networkTaskFunction(void *pvParameters);
+  volatile bool isLoading = false;
+  volatile bool hasError = false;
+  volatile bool dataReadyToDraw = false;
 
   // Cached weather data
   bool hasCachedData = false;
@@ -45,13 +51,6 @@ private:
 public:
   ~WeatherPlugin()
   {
-#ifdef ESP32
-    if (secureClient != nullptr)
-    {
-      delete secureClient;
-      secureClient = nullptr;
-    }
-#endif
   }
 
   void update();

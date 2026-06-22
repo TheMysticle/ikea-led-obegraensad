@@ -24,28 +24,49 @@ void WeatherPlugin::setup()
   else
   {
     // Show loading screen - data needs to be fetched
-    currentStatus = LOADING;
-    Screen.setPixel(4, 7, 1);
-    Screen.setPixel(5, 7, 1);
-    Screen.setPixel(7, 7, 1);
-    Screen.setPixel(8, 7, 1);
-    Screen.setPixel(10, 7, 1);
-    Screen.setPixel(11, 7, 1);
-    currentStatus = NONE;
-
-    // Clear lastUpdate to force immediate fetch on first loop
-    this->lastUpdate = 0;
+    isLoading = true;
+    hasError = false;
+    this->update();
   }
 }
 
 void WeatherPlugin::loop()
 {
-  if (this->lastUpdate == 0 || millis() >= this->lastUpdate + (1000 * 60 * 30))
+  if (isLoading) {
+    // Draw loading animation
+    currentStatus = LOADING;
+    Screen.drawLoadingAnimation(13);
+    currentStatus = NONE;
+    return;
+  }
+
+  if (hasError) {
+    Screen.clear();
+    Screen.setPixel(7, 4, 1); Screen.setPixel(8, 4, 1);
+    Screen.setPixel(7, 5, 1); Screen.setPixel(8, 5, 1);
+    Screen.setPixel(7, 6, 1); Screen.setPixel(8, 6, 1);
+    Screen.setPixel(7, 7, 1); Screen.setPixel(8, 7, 1);
+    Screen.setPixel(7, 8, 1); Screen.setPixel(8, 8, 1);
+    Screen.setPixel(7, 10, 1); Screen.setPixel(8, 10, 1);
+    Screen.setPixel(7, 11, 1); Screen.setPixel(8, 11, 1);
+    
+    // Retry automatically after a while or allow it to remain errored
+    if (millis() >= this->lastUpdate + (1000 * 60 * 5)) { // retry after 5 mins
+      this->update();
+    }
+    return;
+  }
+
+  if (millis() >= this->lastUpdate + (1000 * 60 * 30))
   {
     this->update();
-    this->lastUpdate = millis();
     Serial.println("updating weather");
-  };
+  }
+
+  if (dataReadyToDraw) {
+    dataReadyToDraw = false;
+    drawWeather();
+  }
 }
 
 void WeatherPlugin::update()
@@ -57,6 +78,31 @@ void WeatherPlugin::update()
     return;
   }
 
+  isLoading = true;
+  hasError = false;
+  this->lastUpdate = millis(); // Mark as updated so it doesn't spam
+
+#ifdef ESP32
+  if (networkTaskHandle == NULL) {
+    xTaskCreatePinnedToCore(
+      networkTaskFunction,
+      "WeatherTask",
+      8192,
+      this,
+      1,
+      &networkTaskHandle,
+      0 // Run on Core 0
+    );
+  }
+#else
+  networkTaskFunction(this);
+#endif
+}
+
+void WeatherPlugin::networkTaskFunction(void *pvParameters)
+{
+  WeatherPlugin *plugin = (WeatherPlugin *)pvParameters;
+  
   String weatherLocation = config.getWeatherLocation();
   Serial.print("[WeatherPlugin] Fetching weather for configured city: ");
   Serial.println(weatherLocation);
@@ -66,24 +112,23 @@ void WeatherPlugin::update()
   Serial.println(weatherApiString);
 
 #ifdef ESP32
-  WiFiClientSecure* secureClient = new WiFiClientSecure();
-  secureClient->setInsecure();
-  this->http.begin(*secureClient, weatherApiString);
+  plugin->secureClient.setInsecure();
+  plugin->http.begin(plugin->secureClient, weatherApiString);
 #endif
 #ifdef ESP8266
-  this->http.begin(wiFiClient, weatherApiString);
+  plugin->http.begin(plugin->wiFiClient, weatherApiString);
 #endif
 
-  this->http.setTimeout(20000);
+  plugin->http.setTimeout(20000);
 
   Serial.println("Sending HTTP GET request...");
-  int code = this->http.GET();
+  int code = plugin->http.GET();
   Serial.print("HTTP response code: ");
   Serial.println(code);
 
   if (code == HTTP_CODE_OK)
   {
-    String payload = this->http.getString();
+    String payload = plugin->http.getString();
     Serial.print("Response size: ");
     Serial.println(payload.length());
 
@@ -98,9 +143,15 @@ void WeatherPlugin::update()
     {
       Serial.print("JSON parsing failed: ");
       Serial.println(error.c_str());
-      this->http.end();
+      plugin->http.end();
 #ifdef ESP32
-      delete secureClient;
+      plugin->secureClient.stop();
+#endif
+      plugin->hasError = true;
+      plugin->isLoading = false;
+#ifdef ESP32
+      plugin->networkTaskHandle = NULL;
+      vTaskDelete(NULL);
 #endif
       return;
     }
@@ -111,85 +162,75 @@ void WeatherPlugin::update()
     int iconY = 1;
     int tempY = 10;
 
-    if (std::find(thunderCodes.begin(), thunderCodes.end(), weatherCode) != thunderCodes.end())
+    if (std::find(plugin->thunderCodes.begin(), plugin->thunderCodes.end(), weatherCode) != plugin->thunderCodes.end())
     {
       weatherIcon = 1;
     }
-    else if (std::find(rainCodes.begin(), rainCodes.end(), weatherCode) != rainCodes.end())
+    else if (std::find(plugin->rainCodes.begin(), plugin->rainCodes.end(), weatherCode) != plugin->rainCodes.end())
     {
       weatherIcon = 4;
     }
-    else if (std::find(snowCodes.begin(), snowCodes.end(), weatherCode) != snowCodes.end())
+    else if (std::find(plugin->snowCodes.begin(), plugin->snowCodes.end(), weatherCode) != plugin->snowCodes.end())
     {
       weatherIcon = 5;
     }
-    else if (std::find(fogCodes.begin(), fogCodes.end(), weatherCode) != fogCodes.end())
+    else if (std::find(plugin->fogCodes.begin(), plugin->fogCodes.end(), weatherCode) != plugin->fogCodes.end())
     {
       weatherIcon = 6;
       iconY = 2;
     }
-    else if (std::find(clearCodes.begin(), clearCodes.end(), weatherCode) != clearCodes.end())
+    else if (std::find(plugin->clearCodes.begin(), plugin->clearCodes.end(), weatherCode) != plugin->clearCodes.end())
     {
       weatherIcon = 2;
       iconY = 1;
       tempY = 9;
     }
-    else if (std::find(cloudyCodes.begin(), cloudyCodes.end(), weatherCode) != cloudyCodes.end())
+    else if (std::find(plugin->cloudyCodes.begin(), plugin->cloudyCodes.end(), weatherCode) != plugin->cloudyCodes.end())
     {
       weatherIcon = 0;
       iconY = 2;
       tempY = 9;
     }
-    else if (std::find(partyCloudyCodes.begin(), partyCloudyCodes.end(), weatherCode) !=
-             partyCloudyCodes.end())
+    else if (std::find(plugin->partyCloudyCodes.begin(), plugin->partyCloudyCodes.end(), weatherCode) !=
+             plugin->partyCloudyCodes.end())
     {
       weatherIcon = 3;
       iconY = 2;
     }
 
     // Cache the weather data
-    hasCachedData = true;
-    cachedTemperature = temperature;
-    cachedWeatherIcon = weatherIcon;
-    cachedIconY = iconY;
-    cachedTempY = tempY;
+    plugin->hasCachedData = true;
+    plugin->cachedTemperature = temperature;
+    plugin->cachedWeatherIcon = weatherIcon;
+    plugin->cachedIconY = iconY;
+    plugin->cachedTempY = tempY;
 
-    // Draw the weather
-    drawWeather();
+    // Signal loop to draw the newly fetched data
+    plugin->dataReadyToDraw = true;
   }
   else
   {
     Serial.print("HTTP request failed with code: ");
     Serial.println(code);
-
-    Screen.clear();
-
-    Screen.setPixel(7, 4, 1);
-    Screen.setPixel(8, 4, 1);
-    Screen.setPixel(7, 5, 1);
-    Screen.setPixel(8, 5, 1);
-    Screen.setPixel(7, 6, 1);
-    Screen.setPixel(8, 6, 1);
-    Screen.setPixel(7, 7, 1);
-    Screen.setPixel(8, 7, 1);
-    Screen.setPixel(7, 8, 1);
-    Screen.setPixel(8, 8, 1);
-
-    Screen.setPixel(7, 10, 1);
-    Screen.setPixel(8, 10, 1);
-    Screen.setPixel(7, 11, 1);
-    Screen.setPixel(8, 11, 1);
+    plugin->hasError = true;
   }
 
-  this->http.end();
-
+  plugin->http.end();
 #ifdef ESP32
-  delete secureClient;
+  plugin->secureClient.stop();
+#endif
+
+  plugin->isLoading = false;
+#ifdef ESP32
+  plugin->networkTaskHandle = NULL;
+  vTaskDelete(NULL);
 #endif
 }
 
 void WeatherPlugin::teardown()
 {
+  isLoading = false;
+  hasError = false;
 }
 
 void WeatherPlugin::drawWeather()
