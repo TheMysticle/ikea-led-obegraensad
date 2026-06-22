@@ -46,6 +46,14 @@ void TessiePlugin::setup() {
     fetchChargeState(); 
 }
 
+void TessiePlugin::teardown() {
+    // DO NOT forcefully kill the network task with vTaskDelete here, as it permanently
+    // deadlocks the ESP32 networking stack if an HTTPS request is in progress.
+    // Instead, just clear our cached data so the next load starts fresh.
+    chargePercentage = -1;
+    isLoading = true;
+}
+
 void TessiePlugin::loop() {
     if (isLoading) {
         // --- WATCHDOG TIMER ---
@@ -143,8 +151,10 @@ void TessiePlugin::networkTaskFunction(void *pvParameters) {
         plugin->chargePercentage = -1;
     }
 
-    // "Hang up" the connection, but DO NOT destroy the client objects.
+    // "Hang up" the connection and explicitly stop the wifiClient
+    // to reclaim the ~30KB SSL memory buffer.
     plugin->httpClient.end();
+    plugin->wifiClient.stop();
 
     Serial.println("[TessiePlugin] >> networkTaskFunction finished. Signaling completion.");
     plugin->isLoading = false;
