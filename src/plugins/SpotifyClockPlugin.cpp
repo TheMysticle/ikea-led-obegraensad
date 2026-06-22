@@ -9,6 +9,10 @@ void SpotifyClockPlugin::setup() {
     lastState = -1;
 }
 
+void SpotifyClockPlugin::teardown() {
+    spotifyClient.stop();
+}
+
 void SpotifyClockPlugin::drawProgressBar(int progressPct) {
     int litPixels = (progressPct * 16) / 100;
     if (litPixels > 16) litPixels = 16;

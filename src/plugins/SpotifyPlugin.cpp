@@ -8,6 +8,10 @@ void SpotifyPlugin::setup() {
     lastState = -1;
 }
 
+void SpotifyPlugin::teardown() {
+    spotifyClient.stop();
+}
+
 void SpotifyPlugin::drawProgressBar(int progressPct) {
     // 16x16 screen, total perimeter is 16+15+15+14 = 60 pixels
     // Let's just do a bottom row progress bar for simplicity. 16 pixels.

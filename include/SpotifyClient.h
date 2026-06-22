@@ -21,6 +21,7 @@ class SpotifyClient {
 public:
   SpotifyClient();
   void init();
+  void stop();
   void loop(); // Used to process any non-blocking main-thread tasks, now empty
   SpotifyData getData() const;
 
@@ -29,6 +30,7 @@ private:
   SemaphoreHandle_t dataMutex;
   static void networkTask(void* param);
   bool isTaskRunning;
+  volatile bool shouldStop;
 
   WiFiClientSecure wifiClient;
   HTTPClient httpClient;

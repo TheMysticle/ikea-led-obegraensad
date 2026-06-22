@@ -13,6 +13,7 @@ SpotifyClient::SpotifyClient() {
   tokenExpirationMs = 0;
   isInitialized = false;
   isTaskRunning = false;
+  shouldStop = false;
   taskHandle = NULL;
   dataMutex = xSemaphoreCreateMutex();
 }
@@ -21,6 +22,7 @@ void SpotifyClient::init() {
   if (!isInitialized) {
     wifiClient.setInsecure(); // Disable certificate validation for simplicity, or provide root CA
     isInitialized = true;
+    shouldStop = false;
     
     if (!isTaskRunning) {
       isTaskRunning = true;
@@ -37,6 +39,11 @@ void SpotifyClient::init() {
   }
 }
 
+void SpotifyClient::stop() {
+  shouldStop = true;
+  isInitialized = false; // So it reinitializes on next loop()
+}
+
 void SpotifyClient::loop() {
   if (!isInitialized) {
     init();
@@ -47,6 +54,13 @@ void SpotifyClient::networkTask(void* param) {
   SpotifyClient* client = (SpotifyClient*)param;
   
   while (true) {
+    if (client->shouldStop) {
+      client->wifiClient.stop();
+      client->isTaskRunning = false;
+      client->taskHandle = NULL;
+      vTaskDelete(NULL); // Delete self cleanly
+    }
+
     // If not configured, just wait and try again later
     if (config.getSpotifyClientId().isEmpty() || config.getSpotifyClientSecret().isEmpty() || config.getSpotifyRefreshToken().isEmpty()) {
       static bool configWarned = false;
