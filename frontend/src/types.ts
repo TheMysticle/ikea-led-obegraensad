@@ -38,6 +38,7 @@ export interface StoreActions {
   addLog: (log: string) => void;
   setDiagnostics: (info: DiagnosticsInfo) => void;
   clearLogs: () => void;
+  setSpotifyVisualizer: (enabled: boolean) => void;
 }
 
 export interface Store {
@@ -61,6 +62,7 @@ export interface Store {
   schedule: ScheduleItem[];
   logs: string[];
   diagnostics: DiagnosticsInfo | null;
+  spotifyVisualizer: boolean;
 }
 
 export interface IToastContext {

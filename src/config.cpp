@@ -73,6 +73,7 @@ void Config::setDefaults()
   spotifyClientId = "";
   spotifyClientSecret = "";
   spotifyRefreshToken = "";
+  spotifyVisualizer = false;
   crashReportingEnabled = false;
 }
 
@@ -103,6 +104,7 @@ void Config::load()
     String encSpRefresh = preferences.getString("spRefresh", "");
     spotifyRefreshToken = encSpRefresh.length() > 0 ? crypto.decryptString(encSpRefresh) : "";
     
+    spotifyVisualizer = preferences.getBool("spVisualizer", false);
     crashReportingEnabled = preferences.getBool("crashRep", false);
     
     Serial.println("[Config] Configuration loaded from storage");
@@ -136,6 +138,7 @@ void Config::save()
     preferences.putString("spClientSec", spotifyClientSecret.length() > 0 ? crypto.encryptString(spotifyClientSecret) : "");
     preferences.putString("spRefresh", spotifyRefreshToken.length() > 0 ? crypto.encryptString(spotifyRefreshToken) : "");
     
+    preferences.putBool("spVisualizer", spotifyVisualizer);
     preferences.putBool("crashRep", crashReportingEnabled);
     
     Serial.println("[Config] Configuration saved");
@@ -208,6 +211,11 @@ const String& Config::getSpotifyRefreshToken() const
   return spotifyRefreshToken;
 }
 
+bool Config::getSpotifyVisualizer() const
+{
+  return spotifyVisualizer;
+}
+
 void Config::setWeatherLocation(const String& location)
 {
   if (location.length() > 0 && location.length() < 100) {
@@ -277,6 +285,11 @@ void Config::setSpotifyRefreshToken(const String& refreshToken)
   spotifyRefreshToken = refreshToken;
 }
 
+void Config::setSpotifyVisualizer(bool enabled)
+{
+  spotifyVisualizer = enabled;
+}
+
 void Config::setCrashReportingEnabled(bool enabled)
 {
   crashReportingEnabled = enabled;
@@ -298,6 +311,7 @@ String Config::toJson() const
   doc["spotifyClientId"] = spotifyClientId;
   doc["spotifyClientSecret"] = spotifyClientSecret.length() > 0 ? "sk_live_************************" : "";
   doc["spotifyRefreshToken"] = spotifyRefreshToken.length() > 0 ? "sk_live_************************" : "";
+  doc["spotifyVisualizer"] = spotifyVisualizer;
   doc["crashReportingEnabled"] = crashReportingEnabled;
   
   String output;
@@ -390,6 +404,10 @@ bool Config::fromJson(const String& json)
     if (incomingRefresh != "sk_live_************************") {
       spotifyRefreshToken = incomingRefresh;
     }
+  }
+  
+  if (doc["spotifyVisualizer"].is<bool>()) {
+    spotifyVisualizer = doc["spotifyVisualizer"].as<bool>();
   }
   
   if (doc["crashReportingEnabled"].is<bool>()) {

@@ -29,6 +29,7 @@ private:
   String spotifyClientId;
   String spotifyClientSecret;
   String spotifyRefreshToken;
+  bool spotifyVisualizer;
   bool crashReportingEnabled;
   bool initialized;
 
@@ -60,6 +61,7 @@ public:
   const String& getSpotifyClientId() const;
   const String& getSpotifyClientSecret() const;
   const String& getSpotifyRefreshToken() const;
+  bool getSpotifyVisualizer() const;
   bool getCrashReportingEnabled() const { return crashReportingEnabled; }
   bool isInitialized() const { return initialized; }
   
@@ -76,6 +78,7 @@ public:
   void setSpotifyClientId(const String& clientId);
   void setSpotifyClientSecret(const String& clientSecret);
   void setSpotifyRefreshToken(const String& refreshToken);
+  void setSpotifyVisualizer(bool enabled);
   void setCrashReportingEnabled(bool enabled);
   
   // Export to JSON

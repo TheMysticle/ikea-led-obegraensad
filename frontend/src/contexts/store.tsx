@@ -36,6 +36,7 @@ const [mainStore, setStore] = createStore<Store>({
   schedule: [],
   logs: [],
   diagnostics: null,
+  spotifyVisualizer: false,
 });
 
 const actions: StoreActions = {
@@ -56,6 +57,7 @@ const actions: StoreActions = {
   addLog: (log: string) => setStore("logs", (prev) => [...prev, log].slice(-100)), // keep last 100 logs
   setDiagnostics: (info: DiagnosticsInfo) => setStore("diagnostics", info),
   clearLogs: () => setStore("logs", []),
+  setSpotifyVisualizer: (enabled) => setStore("spotifyVisualizer", enabled),
 };
 
 const store: [Store, StoreActions] = [mainStore, actions] as const;
@@ -118,6 +120,8 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               actions.setIsActiveScheduler(json.scheduleActive);
             if (isValidNumber(json.activeScheduleIndex))
               actions.setActiveScheduleIndex(json.activeScheduleIndex);
+            if (isValidBoolean(json.spotifyVisualizer))
+              actions.setSpotifyVisualizer(json.spotifyVisualizer);
 
             setStore(
               "hasSpeedControl",
@@ -159,6 +163,10 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
 
             if (isValidNumber(json.activeScheduleIndex)) {
               actions.setActiveScheduleIndex(json.activeScheduleIndex);
+            }
+
+            if (isValidBoolean(json.spotifyVisualizer)) {
+              actions.setSpotifyVisualizer(json.spotifyVisualizer);
             }
 
             if (!mainStore.plugins.length && isValidArray(json.plugins)) {

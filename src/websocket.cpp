@@ -1,6 +1,7 @@
 #include "PluginManager.h"
 #include "scheduler.h"
 #include "Logger.h"
+#include "config.h"
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -31,6 +32,7 @@ void sendInfo()
   jsonDocument["brightness"] = Screen.getCurrentBrightness();
   jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
+  jsonDocument["spotifyVisualizer"] = config.getSpotifyVisualizer();
   
   Plugin* activePlugin = pluginManager.getActivePlugin();
   jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
@@ -82,6 +84,7 @@ void sendMinimalInfo()
   jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["activeScheduleIndex"] = Scheduler.getActiveScheduleIndex(); // ADD THIS LINE
+  jsonDocument["spotifyVisualizer"] = config.getSpotifyVisualizer();
 
   Plugin* activePlugin = pluginManager.getActivePlugin();
   jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
@@ -179,6 +182,13 @@ void onWsEvent(AsyncWebSocket *server,
             if (Scheduler.isActive) {
                 Scheduler.isBrightnessOverridden = true;
             }
+            sendMinimalInfo();
+          }
+          else if (!strcmp(event, "spotify_visualizer"))
+          {
+            bool state = wsRequest["state"].as<bool>();
+            config.setSpotifyVisualizer(state);
+            config.save();
             sendMinimalInfo();
           }
           else if (!strcmp(event, "speed"))

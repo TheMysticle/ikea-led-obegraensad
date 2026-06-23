@@ -169,6 +169,25 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </div>
         </SidebarSection>
 
+        <Show when={store?.plugins.find(p => p.id === store?.plugin)?.name?.includes("Spotify") && !store?.isActiveScheduler}>
+          <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
+          <SidebarSection title="Spotify Settings">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Animated Visualizer Icon
+              </label>
+              <input
+                type="checkbox"
+                class="w-4 h-4 text-slate-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
+                checked={store?.spotifyVisualizer}
+                onChange={(e) => {
+                  actions.send(JSON.stringify({ event: "spotify_visualizer", state: e.currentTarget.checked }));
+                }}
+              />
+            </div>
+          </SidebarSection>
+        </Show>
+
         <Show when={store?.plugin === 17 && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
 

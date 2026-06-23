@@ -1,5 +1,6 @@
 #include "plugins/SpotifyPlugin.h"
 #include "screen.h"
+#include "config.h"
 
 void SpotifyPlugin::setup() {
     Screen.clear();
@@ -45,11 +46,27 @@ void SpotifyPlugin::drawPlayPauseIcon(bool isPlaying) {
     }
     
     if (isPlaying) {
-        Screen.setPixel(0, 1, 255);
-        Screen.setPixel(0, 2, 255); Screen.setPixel(1, 2, 255);
-        Screen.setPixel(0, 3, 255); Screen.setPixel(1, 3, 255); Screen.setPixel(2, 3, 255);
-        Screen.setPixel(0, 4, 255); Screen.setPixel(1, 4, 255);
-        Screen.setPixel(0, 5, 255);
+        if (config.getSpotifyVisualizer()) {
+            unsigned long t = millis();
+            for (int x = 0; x < 3; x++) {
+                // Smooth sine wave animation with different phases/speeds per bar
+                float phase = x * 2.0f;
+                float speed = 0.004f + (x * 0.001f);
+                int height = round(3.0f + 2.0f * sin(t * speed + phase));
+                if (height < 1) height = 1;
+                if (height > 5) height = 5;
+                
+                for (int y = 5; y > 5 - height; y--) {
+                    Screen.setPixel(x, y, 255);
+                }
+            }
+        } else {
+            Screen.setPixel(0, 1, 255);
+            Screen.setPixel(0, 2, 255); Screen.setPixel(1, 2, 255);
+            Screen.setPixel(0, 3, 255); Screen.setPixel(1, 3, 255); Screen.setPixel(2, 3, 255);
+            Screen.setPixel(0, 4, 255); Screen.setPixel(1, 4, 255);
+            Screen.setPixel(0, 5, 255);
+        }
     } else {
         Screen.setPixel(0, 1, 255); Screen.setPixel(2, 1, 255);
         Screen.setPixel(0, 2, 255); Screen.setPixel(2, 2, 255);
