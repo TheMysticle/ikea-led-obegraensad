@@ -52,7 +52,6 @@ void SpotifyClockPlugin::drawPlayPauseIcon(bool isPlaying) {
             Screen.setPixel(0, 4, 255);
         }
     } else {
-        Screen.setPixel(0, 0, 255); Screen.setPixel(2, 0, 255);
         Screen.setPixel(0, 1, 255); Screen.setPixel(2, 1, 255);
         Screen.setPixel(0, 2, 255); Screen.setPixel(2, 2, 255);
         Screen.setPixel(0, 3, 255); Screen.setPixel(2, 3, 255);
