@@ -41,10 +41,19 @@ void BigClockPlugin::loop()
 
   const SpotifyData& data = spotifyClient.getData();
 
+  if (data.isPlaying != wasPlaying) {
+      wasPlaying = data.isPlaying;
+      if (data.isPlaying && config.getBigClockShowSpotify() && data.isValid) {
+          isScrolling = true;
+      }
+  }
+
   if (config.getBigClockShowSpotify() && data.isValid && data.id != lastSongId) {
       lastSongId = data.id;
       scrollText = data.artist + " - " + data.title;
-      isScrolling = true;
+      if (data.isPlaying) {
+          isScrolling = true;
+      }
   }
 
   if (isScrolling) {

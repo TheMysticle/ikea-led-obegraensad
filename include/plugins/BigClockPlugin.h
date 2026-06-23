@@ -17,6 +17,7 @@ private:
   unsigned long lastPlayingTime;
   bool isScrolling;
   String scrollText;
+  bool wasPlaying;
 
 public:
   void setup() override;
