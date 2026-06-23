@@ -18,6 +18,7 @@ private:
   bool isScrolling;
   String scrollText;
   bool wasPlaying;
+  bool hasScrolledCurrentSong;
 
 public:
   void setup() override;

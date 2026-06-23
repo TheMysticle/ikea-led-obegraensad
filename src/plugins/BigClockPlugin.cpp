@@ -43,16 +43,19 @@ void BigClockPlugin::loop()
 
   if (data.isPlaying != wasPlaying) {
       wasPlaying = data.isPlaying;
-      if (data.isPlaying && config.getBigClockShowSpotify() && data.isValid) {
+      if (data.isPlaying && config.getBigClockShowSpotify() && data.isValid && !hasScrolledCurrentSong) {
           isScrolling = true;
+          hasScrolledCurrentSong = true;
       }
   }
 
   if (config.getBigClockShowSpotify() && data.isValid && data.id != lastSongId) {
       lastSongId = data.id;
       scrollText = data.artist + " - " + data.title;
+      hasScrolledCurrentSong = false;
       if (data.isPlaying) {
           isScrolling = true;
+          hasScrolledCurrentSong = true;
       }
   }
 

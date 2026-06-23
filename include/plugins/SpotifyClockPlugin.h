@@ -12,6 +12,7 @@ private:
     int lastState = -1;
     unsigned long lastPlayStateChange = 0;
     bool wasPlaying = false;
+    bool hasScrolledCurrentSong = false;
     
     void drawProgressBar(int progressPct);
     void drawPlayPauseIcon(bool isPlaying);

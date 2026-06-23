@@ -104,8 +104,9 @@ void SpotifyClockPlugin::loop() {
     if (data.isPlaying != wasPlaying) {
         wasPlaying = data.isPlaying;
         lastPlayStateChange = millis();
-        if (data.isPlaying) {
+        if (data.isPlaying && !hasScrolledCurrentSong) {
             triggerScroll();
+            hasScrolledCurrentSong = true;
         }
     }
 
@@ -134,8 +135,10 @@ void SpotifyClockPlugin::loop() {
     if (data.id != lastSongId) {
         lastSongId = data.id;
         scrollText = data.artist + " - " + data.title;
+        hasScrolledCurrentSong = false;
         if (data.isPlaying) {
             triggerScroll();
+            hasScrolledCurrentSong = true;
         }
     }
 
