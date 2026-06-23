@@ -463,29 +463,54 @@ void Screen_::scrollText(const std::string &text, int delayTime, uint8_t brightn
     clear();
 
     for (std::size_t strPos = 0; strPos < text.length(); strPos++)
-    { // since i need the pos to calculate, this is the best way to iterate here
-      if (text[strPos] == 195)
-      {
-        // we skip the unicode char indicating special characters
-        skippedChars++;
-      }
-      else
-      {
-        int xPos = (strPos - skippedChars) * (currentFont.sizeX + 1) - i;
+    {
+      unsigned char c1 = text[strPos];
+      int mappedChar = c1;
 
-        if (xPos > -6 && xPos < ROWS)
-        { // so are we somewhere on screen with the char?
-          // ensure that we have a defined char, lets take the first
-          uint8_t currentChar = (((text[strPos] - currentFont.offset) < currentFont.data.size()) &&
-                                 (text[strPos] >= currentFont.offset))
-                                    ? text[strPos]
-                                    : currentFont.offset;
-
-          Screen.drawCharacter(xPos,
-                               4,
-                               Screen.readBytes(currentFont.data[currentChar - currentFont.offset]),
-                               8);
+      if (c1 == 0xC3 || c1 == 0xC4 || c1 == 0xC5)
+      {
+        if (strPos + 1 < text.length()) {
+            unsigned char c2 = text[strPos + 1];
+            
+            if (c1 == 0xC3) mappedChar = c2;
+            else if (c1 == 0xC4) {
+                if (c2 == 0x84) mappedChar = 128; // Ą
+                else if (c2 == 0x85) mappedChar = 129; // ą
+                else if (c2 == 0x86) mappedChar = 130; // Ć
+                else if (c2 == 0x87) mappedChar = 131; // ć
+                else if (c2 == 0x98) mappedChar = 133; // Ę
+                else if (c2 == 0x99) mappedChar = 134; // ę
+            } else if (c1 == 0xC5) {
+                if (c2 == 0x81) mappedChar = 135; // Ł
+                else if (c2 == 0x82) mappedChar = 136; // ł
+                else if (c2 == 0x83) mappedChar = 137; // Ń
+                else if (c2 == 0x84) mappedChar = 138; // ń
+                else if (c2 == 0x9A) mappedChar = 139; // Ś
+                else if (c2 == 0x9B) mappedChar = 140; // ś
+                else if (c2 == 0xB9) mappedChar = 141; // Ź
+                else if (c2 == 0xBA) mappedChar = 142; // ź
+                else if (c2 == 0xBB) mappedChar = 143; // Ż
+                else if (c2 == 0xBC) mappedChar = 144; // ż
+            }
+            
+            strPos++;
+            skippedChars++;
         }
+      }
+
+      int xPos = (strPos - skippedChars) * (currentFont.sizeX + 1) - i;
+
+      if (xPos > -6 && xPos < ROWS)
+      {
+        uint8_t currentChar = (((mappedChar - currentFont.offset) >= 0) && 
+                               ((mappedChar - currentFont.offset) < currentFont.data.size()))
+                                  ? mappedChar
+                                  : currentFont.offset;
+
+        Screen.drawCharacter(xPos,
+                             4,
+                             Screen.readBytes(currentFont.data[currentChar - currentFont.offset]),
+                             8);
       }
     }
 
