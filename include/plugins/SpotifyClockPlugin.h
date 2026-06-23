@@ -10,7 +10,8 @@ private:
     String lastSongId = "";
     String scrollText = "";
     int lastState = -1;
-    
+    unsigned long lastPlayStateChange = 0;
+    bool wasPlaying = false;
     
     void drawProgressBar(int progressPct);
     void drawPlayPauseIcon(bool isPlaying);

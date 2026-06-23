@@ -45,34 +45,52 @@ void SpotifyPlugin::drawPlayPauseIcon(bool isPlaying) {
         }
     }
     
-    if (isPlaying) {
-        if (config.getSpotifyVisualizer()) {
-            unsigned long t = millis();
-            for (int x = 0; x < 3; x++) {
-                // Smooth sine wave animation with different phases/speeds per bar
-                float phase = x * 2.0f;
-                float speed = 0.004f + (x * 0.001f);
-                int height = round(3.0f + 2.0f * sin(t * speed + phase));
-                if (height < 1) height = 1;
-                if (height > 5) height = 5;
-                
-                for (int y = 5; y > 5 - height; y--) {
-                    Screen.setPixel(x, y, 255);
-                }
-            }
+    if (config.getSpotifyVisualizer()) {
+        unsigned long t = millis();
+        float transitionProgress = 0.0f;
+
+        unsigned long timeSinceChange = t > lastPlayStateChange ? t - lastPlayStateChange : 0;
+        float progress = timeSinceChange / 250.0f;
+        if (progress > 1.0f) progress = 1.0f;
+        
+        if (isPlaying) {
+            transitionProgress = 1.0f - progress;
         } else {
+            transitionProgress = progress;
+        }
+
+        // Target heights for pause state (left: 4, middle: 0, right: 4)
+        float targetHeights[3] = {4.0f, 0.0f, 4.0f};
+
+        for (int x = 0; x < 3; x++) {
+            float phase = x * 2.0f;
+            float speed = 0.004f + (x * 0.001f);
+            float sineHeight = 3.0f + 2.0f * sin(t * speed + phase);
+            
+            float currentHeight = sineHeight * (1.0f - transitionProgress) + targetHeights[x] * transitionProgress;
+            int height = round(currentHeight);
+
+            if (height < 1 && transitionProgress < 1.0f) height = 1;
+            if (height < 0) height = 0;
+            if (height > 5) height = 5;
+            
+            for (int y = 5; y > 5 - height; y--) {
+                Screen.setPixel(x, y, 255);
+            }
+        }
+    } else {
+        if (isPlaying) {
             Screen.setPixel(0, 1, 255);
             Screen.setPixel(0, 2, 255); Screen.setPixel(1, 2, 255);
             Screen.setPixel(0, 3, 255); Screen.setPixel(1, 3, 255); Screen.setPixel(2, 3, 255);
             Screen.setPixel(0, 4, 255); Screen.setPixel(1, 4, 255);
             Screen.setPixel(0, 5, 255);
+        } else {
+            Screen.setPixel(0, 2, 255); Screen.setPixel(2, 2, 255);
+            Screen.setPixel(0, 3, 255); Screen.setPixel(2, 3, 255);
+            Screen.setPixel(0, 4, 255); Screen.setPixel(2, 4, 255);
+            Screen.setPixel(0, 5, 255); Screen.setPixel(2, 5, 255);
         }
-    } else {
-        Screen.setPixel(0, 1, 255); Screen.setPixel(2, 1, 255);
-        Screen.setPixel(0, 2, 255); Screen.setPixel(2, 2, 255);
-        Screen.setPixel(0, 3, 255); Screen.setPixel(2, 3, 255);
-        Screen.setPixel(0, 4, 255); Screen.setPixel(2, 4, 255);
-        Screen.setPixel(0, 5, 255); Screen.setPixel(2, 5, 255);
     }
 }
 
@@ -84,6 +102,10 @@ void SpotifyPlugin::triggerScroll() {
 void SpotifyPlugin::loop() {
     spotifyClient.loop();
     const SpotifyData& data = spotifyClient.getData();
+    if (data.isPlaying != wasPlaying) {
+        wasPlaying = data.isPlaying;
+        lastPlayStateChange = millis();
+    }
 
     int currentState = 0;
     if (!data.isValid) currentState = 1;
