@@ -166,7 +166,9 @@ void screenDrawingTask(void *parameter)
   Screen.setup();
   for (;;)
   {
-    pluginManager.runActivePlugin();
+    if (currentStatus != UPDATE) {
+      pluginManager.runActivePlugin();
+    }
     vTaskDelay(1);
   }
 }
@@ -207,7 +209,9 @@ void setup()
 void screenDrawingTask()
 {
   Screen.setup();
-  pluginManager.runActivePlugin();
+  if (currentStatus != UPDATE) {
+    pluginManager.runActivePlugin();
+  }
   yield();
 }
 
@@ -229,7 +233,9 @@ void loop()
 #endif
 
 #if !defined(ESP32) && !defined(ESP8266)
-  pluginManager.runActivePlugin();
+  if (currentStatus != UPDATE) {
+    pluginManager.runActivePlugin();
+  }
 #endif
 
   if (currentStatus == NONE || currentStatus == SCROLLING)

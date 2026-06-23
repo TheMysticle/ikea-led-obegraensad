@@ -1,5 +1,8 @@
 #include "ota.h"
 #include "Logger.h"
+#include "PluginManager.h"
+
+extern PluginManager pluginManager;
 
 #ifdef ENABLE_SERVER
 
@@ -12,6 +15,10 @@ void onOTAStart()
 {
   Logger::println("OTA update started!");
   currentStatus = UPDATE;
+
+  if (pluginManager.getActivePlugin()) {
+      pluginManager.getActivePlugin()->teardown();
+  }
 
   Screen.clear();
   std::vector<int> bits = Screen.readBytes(letterU);
