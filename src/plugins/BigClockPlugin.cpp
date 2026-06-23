@@ -1,4 +1,6 @@
 #include "plugins/BigClockPlugin.h"
+#include "SpotifyClient.h"
+#include "config.h"
 
 void BigClockPlugin::setup()
 {
@@ -13,15 +15,97 @@ void BigClockPlugin::setup()
   previousMinutes = -1;
   previousHour = -1;
   previousHH.clear();
+  previousHH.clear();
   previousMM.clear();
   previousLeadingZero = false;
+
+  lastSongId = "";
+  lastPlayingTime = 0;
+  isScrolling = false;
+}
+
+void BigClockPlugin::teardown()
+{
+  spotifyClient.stop();
 }
 
 void BigClockPlugin::loop()
 {
-  static unsigned long lastUpdate = 0;
+  bool usesSpotify = config.getBigClockShowSpotify() || config.getBigClockShowProgress();
+  
+  if (usesSpotify) {
+      spotifyClient.loop();
+  } else {
+      spotifyClient.stop();
+  }
+
+  const SpotifyData& data = spotifyClient.getData();
+
+  if (config.getBigClockShowSpotify() && data.isValid && data.id != lastSongId) {
+      lastSongId = data.id;
+      scrollText = data.artist + " - " + data.title;
+      isScrolling = true;
+  }
+
+  if (isScrolling) {
+      Screen.clear();
+      Screen.scrollText(scrollText.c_str(), 40);
+      isScrolling = false;
+      Screen.clear();
+      previousHH.clear();
+      previousMM.clear();
+  }
+
+  if (data.isPlaying) {
+      lastPlayingTime = millis();
+  }
+
   unsigned long now = millis();
-  if (now - lastUpdate >= 1000) // Only update once per second
+  static unsigned long lastUpdate = 0;
+  bool clockUpdate = (now - lastUpdate >= 1000);
+
+  if (config.getBigClockShowProgress()) {
+    unsigned long fadeDelayMs = (unsigned long)config.getBigClockProgressFadeDelay() * 1000UL;
+    unsigned long fadeDurationMs = 500; // 500ms fast fade
+    unsigned long timeSincePause = now > lastPlayingTime ? now - lastPlayingTime : 0;
+    
+    bool isFading = (!data.isPlaying && timeSincePause > fadeDelayMs && timeSincePause <= fadeDelayMs + fadeDurationMs);
+
+    if (clockUpdate || isFading) {
+        uint8_t barBrightness = 0;
+        
+        if (data.isPlaying || timeSincePause <= fadeDelayMs) {
+            barBrightness = 255;
+        } else if (isFading) {
+            float fadeFactor = 1.0f - (float)(timeSincePause - fadeDelayMs) / fadeDurationMs;
+            barBrightness = (uint8_t)(255.0f * fadeFactor);
+        }
+
+        if (data.isValid && data.durationMs > 0) {
+            int progressPct = (data.progressMs * 100) / data.durationMs;
+            int litPixels = (progressPct * 16) / 100;
+            if (litPixels > 16) litPixels = 16;
+            for (int i = 0; i < 16; i++) {
+                if (i < litPixels && barBrightness > 0) {
+                    Screen.setPixel(i, 15, 255, barBrightness);
+                } else {
+                    Screen.setPixel(i, 15, 0);
+                }
+            }
+        } else {
+            for (int i = 0; i < 16; i++) {
+                Screen.setPixel(i, 15, 0);
+            }
+        }
+    }
+  } else if (clockUpdate) {
+      // If disabled, ensure row 15 is clean on clock updates
+      for (int i = 0; i < 16; i++) {
+          Screen.setPixel(i, 15, 0);
+      }
+  }
+  
+  if (clockUpdate) // Only update once per second
   {
     lastUpdate = now;
     if (getLocalTime(&timeinfo))
@@ -34,7 +118,6 @@ void BigClockPlugin::loop()
 
       if (layoutChanged)
       {
-
         Screen.clear();
         if (leadingZero)
         {
@@ -50,7 +133,6 @@ void BigClockPlugin::loop()
       }
       else
       {
-
         std::vector<int> displayHH = hh;
         if (leadingZero)
         {
@@ -74,7 +156,6 @@ void BigClockPlugin::loop()
 
       if (layoutChanged)
       {
-
         std::vector<int> displayHH = hh;
         if (leadingZero)
         {

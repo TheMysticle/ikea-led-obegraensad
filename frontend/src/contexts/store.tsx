@@ -37,6 +37,9 @@ const [mainStore, setStore] = createStore<Store>({
   logs: [],
   diagnostics: null,
   spotifyVisualizer: false,
+  bigClockShowSpotify: false,
+  bigClockShowProgress: false,
+  bigClockProgressFadeDelay: 5,
 });
 
 const actions: StoreActions = {
@@ -58,6 +61,9 @@ const actions: StoreActions = {
   setDiagnostics: (info: DiagnosticsInfo) => setStore("diagnostics", info),
   clearLogs: () => setStore("logs", []),
   setSpotifyVisualizer: (enabled) => setStore("spotifyVisualizer", enabled),
+  setBigClockShowSpotify: (enabled) => setStore("bigClockShowSpotify", enabled),
+  setBigClockShowProgress: (enabled) => setStore("bigClockShowProgress", enabled),
+  setBigClockProgressFadeDelay: (delay) => setStore("bigClockProgressFadeDelay", delay),
 };
 
 const store: [Store, StoreActions] = [mainStore, actions] as const;
@@ -122,6 +128,12 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               actions.setActiveScheduleIndex(json.activeScheduleIndex);
             if (isValidBoolean(json.spotifyVisualizer))
               actions.setSpotifyVisualizer(json.spotifyVisualizer);
+            if (isValidBoolean(json.bigClockShowSpotify))
+              actions.setBigClockShowSpotify(json.bigClockShowSpotify);
+            if (isValidBoolean(json.bigClockShowProgress))
+              actions.setBigClockShowProgress(json.bigClockShowProgress);
+            if (isValidNumber(json.bigClockProgressFadeDelay))
+              actions.setBigClockProgressFadeDelay(json.bigClockProgressFadeDelay);
 
             setStore(
               "hasSpeedControl",
@@ -167,6 +179,15 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
 
             if (isValidBoolean(json.spotifyVisualizer)) {
               actions.setSpotifyVisualizer(json.spotifyVisualizer);
+            }
+            if (isValidBoolean(json.bigClockShowSpotify)) {
+              actions.setBigClockShowSpotify(json.bigClockShowSpotify);
+            }
+            if (isValidBoolean(json.bigClockShowProgress)) {
+              actions.setBigClockShowProgress(json.bigClockShowProgress);
+            }
+            if (isValidNumber(json.bigClockProgressFadeDelay)) {
+              actions.setBigClockProgressFadeDelay(json.bigClockProgressFadeDelay);
             }
 
             if (!mainStore.plugins.length && isValidArray(json.plugins)) {

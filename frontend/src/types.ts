@@ -39,6 +39,9 @@ export interface StoreActions {
   setDiagnostics: (info: DiagnosticsInfo) => void;
   clearLogs: () => void;
   setSpotifyVisualizer: (enabled: boolean) => void;
+  setBigClockShowSpotify: (enabled: boolean) => void;
+  setBigClockShowProgress: (enabled: boolean) => void;
+  setBigClockProgressFadeDelay: (delay: number) => void;
 }
 
 export interface Store {
@@ -63,6 +66,9 @@ export interface Store {
   logs: string[];
   diagnostics: DiagnosticsInfo | null;
   spotifyVisualizer: boolean;
+  bigClockShowSpotify: boolean;
+  bigClockShowProgress: boolean;
+  bigClockProgressFadeDelay: number;
 }
 
 export interface IToastContext {

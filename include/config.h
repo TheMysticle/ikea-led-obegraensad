@@ -30,6 +30,9 @@ private:
   String spotifyClientSecret;
   String spotifyRefreshToken;
   bool spotifyVisualizer;
+  bool bigClockShowSpotify;
+  bool bigClockShowProgress;
+  int bigClockProgressFadeDelay;
   bool crashReportingEnabled;
   bool initialized;
 
@@ -61,7 +64,10 @@ public:
   const String& getSpotifyClientId() const;
   const String& getSpotifyClientSecret() const;
   const String& getSpotifyRefreshToken() const;
-  bool getSpotifyVisualizer() const;
+  bool getSpotifyVisualizer() const { return spotifyVisualizer; }
+  bool getBigClockShowSpotify() const { return bigClockShowSpotify; }
+  bool getBigClockShowProgress() const { return bigClockShowProgress; }
+  int getBigClockProgressFadeDelay() const { return bigClockProgressFadeDelay; }
   bool getCrashReportingEnabled() const { return crashReportingEnabled; }
   bool isInitialized() const { return initialized; }
   
@@ -79,6 +85,9 @@ public:
   void setSpotifyClientSecret(const String& clientSecret);
   void setSpotifyRefreshToken(const String& refreshToken);
   void setSpotifyVisualizer(bool enabled);
+  void setBigClockShowSpotify(bool enabled);
+  void setBigClockShowProgress(bool enabled);
+  void setBigClockProgressFadeDelay(int delaySeconds);
   void setCrashReportingEnabled(bool enabled);
   
   // Export to JSON

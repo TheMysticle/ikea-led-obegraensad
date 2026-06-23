@@ -33,6 +33,9 @@ void sendInfo()
   jsonDocument["power"] = Screen.isPowerOn();
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["spotifyVisualizer"] = config.getSpotifyVisualizer();
+  jsonDocument["bigClockShowSpotify"] = config.getBigClockShowSpotify();
+  jsonDocument["bigClockShowProgress"] = config.getBigClockShowProgress();
+  jsonDocument["bigClockProgressFadeDelay"] = config.getBigClockProgressFadeDelay();
   
   Plugin* activePlugin = pluginManager.getActivePlugin();
   jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
@@ -85,6 +88,9 @@ void sendMinimalInfo()
   jsonDocument["scheduleActive"] = Scheduler.isActive;
   jsonDocument["activeScheduleIndex"] = Scheduler.getActiveScheduleIndex(); // ADD THIS LINE
   jsonDocument["spotifyVisualizer"] = config.getSpotifyVisualizer();
+  jsonDocument["bigClockShowSpotify"] = config.getBigClockShowSpotify();
+  jsonDocument["bigClockShowProgress"] = config.getBigClockShowProgress();
+  jsonDocument["bigClockProgressFadeDelay"] = config.getBigClockProgressFadeDelay();
 
   Plugin* activePlugin = pluginManager.getActivePlugin();
   jsonDocument["hasSpeedControl"] = activePlugin->hasSpeedControl();
@@ -184,10 +190,16 @@ void onWsEvent(AsyncWebSocket *server,
             }
             sendMinimalInfo();
           }
-          else if (!strcmp(event, "spotify_visualizer"))
-          {
-            bool state = wsRequest["state"].as<bool>();
+          else if (strcmp(event, "spotify_visualizer") == 0) {
+            bool state = wsRequest["state"] | false;
             config.setSpotifyVisualizer(state);
+            config.save();
+            sendMinimalInfo();
+          }
+          else if (strcmp(event, "big_clock_settings") == 0) {
+            if (wsRequest.containsKey("bigClockShowSpotify")) config.setBigClockShowSpotify(wsRequest["bigClockShowSpotify"] | false);
+            if (wsRequest.containsKey("bigClockShowProgress")) config.setBigClockShowProgress(wsRequest["bigClockShowProgress"] | false);
+            if (wsRequest.containsKey("bigClockProgressFadeDelay")) config.setBigClockProgressFadeDelay(wsRequest["bigClockProgressFadeDelay"] | 5);
             config.save();
             sendMinimalInfo();
           }

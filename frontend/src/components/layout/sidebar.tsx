@@ -188,6 +188,58 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </SidebarSection>
         </Show>
 
+        <Show when={store?.plugins.find(p => p.id === store?.plugin)?.name?.includes("Big Clock") && !store?.isActiveScheduler}>
+          <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
+          <SidebarSection title="Spotify Settings">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Show Now Playing
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-slate-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
+                  checked={store?.bigClockShowSpotify}
+                  onChange={(e) => {
+                    actions.send(JSON.stringify({ event: "big_clock_settings", bigClockShowSpotify: e.currentTarget.checked }));
+                  }}
+                />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Show Progress Bar
+                </label>
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-slate-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 rounded focus:ring-slate-500"
+                  checked={store?.bigClockShowProgress}
+                  onChange={(e) => {
+                    actions.send(JSON.stringify({ event: "big_clock_settings", bigClockShowProgress: e.currentTarget.checked }));
+                  }}
+                />
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Progress Bar Fade Delay (s)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="300"
+                  disabled={!store?.bigClockShowProgress}
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 dark:focus:ring-slate-400 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={store?.bigClockProgressFadeDelay}
+                  onBlur={(e) => {
+                    actions.send(JSON.stringify({ event: "big_clock_settings", bigClockProgressFadeDelay: parseInt(e.currentTarget.value) }));
+                  }}
+                />
+              </div>
+            </div>
+          </SidebarSection>
+        </Show>
+
         <Show when={store?.plugin === 17 && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-slate-200 dark:border-slate-700" />
 

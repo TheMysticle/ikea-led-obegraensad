@@ -13,8 +13,14 @@ private:
   std::vector<int> previousMM;
   bool previousLeadingZero;
 
+  String lastSongId;
+  unsigned long lastPlayingTime;
+  bool isScrolling;
+  String scrollText;
+
 public:
   void setup() override;
+  void teardown() override;
   void loop() override;
   const char *getName() const override;
 };

@@ -74,6 +74,9 @@ void Config::setDefaults()
   spotifyClientSecret = "";
   spotifyRefreshToken = "";
   spotifyVisualizer = false;
+  bigClockShowSpotify = false;
+  bigClockShowProgress = false;
+  bigClockProgressFadeDelay = 5;
   crashReportingEnabled = false;
 }
 
@@ -104,9 +107,13 @@ void Config::load()
     String encSpRefresh = preferences.getString("spRefresh", "");
     spotifyRefreshToken = encSpRefresh.length() > 0 ? crypto.decryptString(encSpRefresh) : "";
     
-    spotifyVisualizer = preferences.getBool("spVisualizer", false);
+    spotifyVisualizer = preferences.getBool("spotVisual", false);
+    bigClockShowSpotify = preferences.getBool("bcSpot", false);
+    bigClockShowProgress = preferences.getBool("bcProg", false);
+    bigClockProgressFadeDelay = preferences.getInt("bcFadeDelay", 5);
     crashReportingEnabled = preferences.getBool("crashRep", false);
     
+    preferences.end();
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
     Serial.println("[Config] Error loading config, using defaults");
@@ -124,6 +131,7 @@ void Config::save()
   }
   
   try {
+    preferences.begin("config", false);
     preferences.putString("weatherLoc", weatherLocation);
     preferences.putString("ntpServer", ntpServer);
     preferences.putString("tzInfo", tzInfo);
@@ -138,9 +146,13 @@ void Config::save()
     preferences.putString("spClientSec", spotifyClientSecret.length() > 0 ? crypto.encryptString(spotifyClientSecret) : "");
     preferences.putString("spRefresh", spotifyRefreshToken.length() > 0 ? crypto.encryptString(spotifyRefreshToken) : "");
     
-    preferences.putBool("spVisualizer", spotifyVisualizer);
+    preferences.putBool("spotVisual", spotifyVisualizer);
+    preferences.putBool("bcSpot", bigClockShowSpotify);
+    preferences.putBool("bcProg", bigClockShowProgress);
+    preferences.putInt("bcFadeDelay", bigClockProgressFadeDelay);
     preferences.putBool("crashRep", crashReportingEnabled);
     
+    preferences.end();
     Serial.println("[Config] Configuration saved");
   } catch (...) {
     Serial.println("[Config] Error: Could not save configuration");
@@ -211,10 +223,6 @@ const String& Config::getSpotifyRefreshToken() const
   return spotifyRefreshToken;
 }
 
-bool Config::getSpotifyVisualizer() const
-{
-  return spotifyVisualizer;
-}
 
 void Config::setWeatherLocation(const String& location)
 {
@@ -285,11 +293,25 @@ void Config::setSpotifyRefreshToken(const String& refreshToken)
   spotifyRefreshToken = refreshToken;
 }
 
-void Config::setSpotifyVisualizer(bool enabled)
-{
+void Config::setSpotifyVisualizer(bool enabled) {
   spotifyVisualizer = enabled;
+  save();
 }
 
+void Config::setBigClockShowSpotify(bool enabled) {
+  bigClockShowSpotify = enabled;
+  save();
+}
+
+void Config::setBigClockShowProgress(bool enabled) {
+  bigClockShowProgress = enabled;
+  save();
+}
+
+void Config::setBigClockProgressFadeDelay(int delaySeconds) {
+  bigClockProgressFadeDelay = delaySeconds;
+  save();
+}
 void Config::setCrashReportingEnabled(bool enabled)
 {
   crashReportingEnabled = enabled;
@@ -312,6 +334,9 @@ String Config::toJson() const
   doc["spotifyClientSecret"] = spotifyClientSecret.length() > 0 ? "sk_live_************************" : "";
   doc["spotifyRefreshToken"] = spotifyRefreshToken.length() > 0 ? "sk_live_************************" : "";
   doc["spotifyVisualizer"] = spotifyVisualizer;
+  doc["bigClockShowSpotify"] = bigClockShowSpotify;
+  doc["bigClockShowProgress"] = bigClockShowProgress;
+  doc["bigClockProgressFadeDelay"] = bigClockProgressFadeDelay;
   doc["crashReportingEnabled"] = crashReportingEnabled;
   
   String output;
@@ -407,7 +432,16 @@ bool Config::fromJson(const String& json)
   }
   
   if (doc["spotifyVisualizer"].is<bool>()) {
-    spotifyVisualizer = doc["spotifyVisualizer"].as<bool>();
+    spotifyVisualizer = doc["spotifyVisualizer"] | false;
+  }
+  if (doc["bigClockShowSpotify"].is<bool>()) {
+    bigClockShowSpotify = doc["bigClockShowSpotify"] | false;
+  }
+  if (doc["bigClockShowProgress"].is<bool>()) {
+    bigClockShowProgress = doc["bigClockShowProgress"] | false;
+  }
+  if (doc["bigClockProgressFadeDelay"].is<int>()) {
+    bigClockProgressFadeDelay = doc["bigClockProgressFadeDelay"] | 5;
   }
   
   if (doc["crashReportingEnabled"].is<bool>()) {
