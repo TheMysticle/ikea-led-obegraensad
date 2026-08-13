@@ -1,7 +1,10 @@
 #include "plugins/ArtNet.h"
 
+static bool artnetPluginActive = false;
+
 void ArtNetPlugin::setup()
 {
+  artnetPluginActive = true;
   artnet.begin();
   artnet.setArtDmxCallback(onDmxFrame);
   Serial.print("ArtNet server listening at IP: ");
@@ -15,6 +18,7 @@ void ArtNetPlugin::setup()
 
 void ArtNetPlugin::teardown()
 {
+  artnetPluginActive = false;
 }
 
 void ArtNetPlugin::loop()
@@ -29,6 +33,8 @@ const char *ArtNetPlugin::getName() const
 
 void ArtNetPlugin::onDmxFrame(uint16_t universe, uint16_t length, uint16_t outgoing, uint8_t *data)
 {
+  if (!artnetPluginActive) return;
+
   Serial.print("Universe: ");
   Serial.println(universe);
   if (universe == 0 || universe == outgoing)

@@ -180,6 +180,7 @@ char remotePacketBuffer[64];
 void checkForRemotePluginSwitch() {
     int packetSize = remoteUdp.parsePacket();
     if (packetSize) {
+        memset(remotePacketBuffer, 0, sizeof(remotePacketBuffer));
         int len = remoteUdp.read(remotePacketBuffer, sizeof(remotePacketBuffer) - 1);
         if (len > 0) remotePacketBuffer[len] = 0;
         if (strncmp(remotePacketBuffer, "PLUGIN:", 7) == 0) {
